@@ -35,17 +35,21 @@ repositorio:
 - 01 Planeación inicial v1.2 (investigación, alcance, arquitectura, plan por sprint e integrante).
 - 02 Flujo de trabajo en GitHub v1.0.
 - 03 Requisitos funcionales v1.0 (127 RF, RF-001 a RF-127).
-- Libro de diagramas (draw.io): modelo relacional (Diagrama_ER-V2) y entidad-relación Chen (Diagrama_ER-Chen), en revisión.
-- Prototipo de pantallas (Claude Design): iteraciones 1 (abordaje) y 2 (operación).
+- Libro de diagramas (draw.io): modelo relacional v2.1 (Diagrama_ER-V2, 32 tablas) y entidad-relación final en
+  notación Chen (Diagrama_ER-Final, 28 entidades). Las hojas Diagrama_ER-Chen y su copia son las versiones de trabajo
+  del equipo con sus observaciones.
+- Prototipo de pantallas (Claude Design): 6 iteraciones, 31 pantallas, cubre los 127 RF
+  (abordaje, operación, dinero, cuenta, administración, superadministrador y casos especiales).
 
 ## Estado actual
 
 - **Fase:** Sprint 0–1 — planeación, requisitos, prototipo y modelo de datos.
-- **Hecho:** planeación v1.2, flujo de GitHub v1.0, requisitos funcionales v1.0, prototipo (iteraciones 1 y 2),
-  modelo relacional y entidad-relación (en revisión del equipo).
+- **Hecho:** planeación v1.2, flujo de GitHub v1.0, requisitos funcionales v1.0, prototipo completo (6 iteraciones,
+  31 pantallas), modelo relacional v2.1 y entidad-relación final (incluyen Venta e Incidente, ver contexto D17–D19).
 - **Hecho (2026-11-12):** organización `paso-de-lanchas` con los repos **paso-de-lanchas-app** (público, este) y
   **.github** (perfil y plantillas compartidas); ramas `main` y `develop` protegidas.
-- **Siguiente:** correcciones del diagrama ER, requisitos no funcionales, visita de campo, arranque del proyecto Next.js.
+- **Siguiente:** revisión del ER final por el equipo, definir el máximo de boletos por venta, requisitos no
+  funcionales, visita de campo, arranque del proyecto Next.js.
 - **Aún no hay código de la aplicación.**
 
 ## Stack acordado
@@ -101,6 +105,8 @@ _(Se llenarán cuando exista el código.)_
 | 2026-11-09 | Omar (con Claude) | Documento 03 «Requisitos funcionales» v1.0: 127 RF en 19 módulos (Usuario/Sistema) |
 | 2026-11-10 | Omar (con Claude) | Prototipo (iteraciones 1 y 2), modelo relacional (30 tablas) y entidad-relación Chen (26 entidades) |
 | 2026-11-12 | Omar (con Claude) | Repos `paso-de-lanchas-app` y `.github`, ramas `main`/`develop` protegidas, plantillas y etiquetas |
+| 2026-11-13 | Omar (con Claude) | Prototipo iteraciones 3 a 6 (dinero, cuenta, administración, superadministrador y casos especiales): 31 pantallas |
+| 2026-11-13 | Equipo + Claude | ER final (Diagrama_ER-Final) con las observaciones del equipo: Venta (varios boletos en un cobro), Incidente y reasignación a lista de espera; relacional v2.1 con `sales` e `incidents` |
 
 ## Registro de errores y soluciones
 

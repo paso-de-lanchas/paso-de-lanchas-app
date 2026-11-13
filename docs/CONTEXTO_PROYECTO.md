@@ -61,6 +61,9 @@ No hay vista para autoridades: el administrador genera y entrega los reportes.
 | D14 | Las embarcaciones **salen al llenarse** (sin horario fijo). Fila de embarcaciones por muelle; al llenarse pasa a Abordando la siguiente o se crea lista de espera para la próxima que llegue; al **Terminar viaje** se abre automáticamente la salida de regreso. Estados de la salida: En fila → Abordando → Abordaje cerrado → En tránsito → Finalizado | Así opera el cruce real |
 | D15 | Al pasajero se le muestra, por muelle: embarcación cargando y ocupación, embarcación en camino con tiempo estimado de llegada y estimado de salida por ritmo de abordaje. «Horarios» = **horario de servicio** | No hay hora fija de salida |
 | D16 | Misma tarifa en ambos sentidos | Confirmado por el equipo |
+| D17 | **Venta**: un solo cobro puede incluir varios boletos (Venta 1:N Abordaje). La venta lleva canal (QR con saldo o taquilla), forma de pago y total; cada Abordaje es un boleto con su lugar y su tarifa. El máximo de boletos por venta es una regla de configuración | Observación del equipo («¿cómo compro más de un boleto?») |
+| D18 | No hay compra de boletos en línea: en línea solo se recarga saldo. El boleto se genera al abordar (QR) o en la taquilla | La salida es «al llenarse» y el lugar se asigna en el muelle |
+| D19 | **Incidente**: si una embarcación sufre un incidente, la salida afectada se reasigna (pasajeros a la lista de espera con prioridad, sin volver a cobrar) o se reembolsa. La fila de embarcaciones sigue siendo la Salida en estado «En fila» | Observación del equipo («reasignar por cualquier accidente») |
 
 ## 4. Reglas que SIEMPRE se deben seguir
 
@@ -129,3 +132,15 @@ Este proyecto es **ingeniería de software**: todo código debe:
 - Ramas `main` (producción) y `develop` (integración, rama por defecto), ambas protegidas: todo entra por pull request
   (1 aprobación hacia `develop`, 2 hacia `main`), sin force push ni borrado. Squash hacia `develop`; merge commit hacia `main`.
 - **Siguiente:** que el equipo active 2FA y acepte la invitación, crear el team `desarrollo`, correcciones del diagrama ER.
+
+### 2026-11-13 — Prototipo completo y modelo de datos final
+- Prototipo en Claude Design terminado: **6 iteraciones, 31 pantallas**, que cubren los 127 RF (3: saldo, recargas y
+  corte de caja; 4: cuenta, vehículos y descuentos; 5: flota, choferes, tarifas, horario, avisos y reportes;
+  6: superadministrador, acceso del personal, venta en taquilla, lista de pasajeros, notificaciones y sin conexión).
+- El equipo revisó el entidad-relación Chen y dejó observaciones (carrito, máximo de boletos, ticket en línea,
+  reasignación por accidente) y una copia con una propuesta de carrito.
+- Nueva hoja **Diagrama_ER-Final** (28 entidades) con esas observaciones resueltas: **Venta** en lugar de carrito,
+  **Incidente** y reasignación a la lista de espera con prioridad (decisiones D17–D19).
+- El relacional pasa a **v2.1** (32 tablas): nuevas `sales` e `incidents`; `boardings` apunta a `sales` y el pago, el
+  administrador, la computadora y el turno de caja pasan a la venta; `waitlist_entries` gana `priority` y `origin_boarding_id`.
+- **Pendiente:** definir el máximo de boletos por venta; revisión del ER final por el equipo.
