@@ -1,0 +1,45 @@
+# Dependencias
+node_modules/
+.pnp
+.pnp.*
+
+# Next.js / build
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# Variables de entorno: NUNCA se suben (solo .env.example)
+.env
+.env.*
+!.env.example
+
+# Pruebas y reportes
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# Despliegue
+.vercel/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Sistema operativo y editores
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+*.swp
+
+# Archivos temporales de Office y draw.io
+~$*
+*.drawio.bkp
+.$*.bkp
