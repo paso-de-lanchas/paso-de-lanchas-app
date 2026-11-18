@@ -46,8 +46,8 @@ Los módulos dependen unos de otros: no se puede abordar sin login, ni cobrar si
 |---|---|---|
 | **2 · Cimientos** | Login, registro y sesiones con roles (RF-001–013) | Omar |
 | | Muelles, flota y choferes en el panel del admin (RF-088–096) | Pamela |
-| | Tarifas vigentes y solicitudes de descuento (RF-097–101) | Cova |
-| | Cuenta y perfil del pasajero (RF-014–020) | José |
+| | Tarifas con vigencia e historial y cálculo de la tarifa vigente (RF-097–101) | Cova |
+| | Cuenta y perfil del pasajero, incluida la solicitud de descuento (RF-014–020) | José |
 | | Componentes compartidos + navegación por rol + generar el QR TOTP (RF-032–034) | Diego |
 | **3 · Dinero y QR** | Saldo, recarga en efectivo en taquilla y en línea con Mercado Pago de prueba (RF-021–031) | Cova |
 | | QR completo: sin internet, renovación, revocación (RF-035–038) | Diego |
@@ -110,7 +110,8 @@ Ya hay dos ejemplos para copiar el estilo: `src/domain/shared/money.ts` (dinero 
 
 1. Prepara tu computadora con [ENTORNO_DESARROLLO.md](ENTORNO_DESARROLLO.md) y comprueba que
    `http://localhost:3000/api/health` responde `{"status":"ok","database":"ok"}`.
-2. Abre el issue de tu primera historia (Pamela los crea en el tablero) y crea tu rama:
+2. Abre tu issue en el milestone **Sprint 2 · Cimientos** (pestaña *Issues* del repo; ya tiene criterios de aceptación
+   y dónde va el código) y crea tu rama:
    `feature/<número>-<descripcion>`.
 3. Empieza por la **regla del dominio y su prueba** (`npm run test:watch`), luego el caso de uso, luego la pantalla.
 4. Abre tu PR hacia `develop` cuando la historia funcione completa, aunque sea pequeña. PRs pequeños se revisan rápido.
