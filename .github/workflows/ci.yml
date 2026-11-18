@@ -1,0 +1,71 @@
+# Revisión automática de cada pull request y de cada cambio en develop/main.
+# Si algo falla aquí, el PR muestra una ❌ y hay que corregirlo antes de fusionar.
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Lint, tipos, pruebas y build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: paso
+          POSTGRES_PASSWORD: paso_ci
+          POSTGRES_DB: paso_lanchas_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U paso -d paso_lanchas_ci"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://paso:paso_ci@localhost:5432/paso_lanchas_ci?schema=public
+      DATABASE_URL_TEST: postgresql://paso:paso_ci@localhost:5432/paso_lanchas_ci?schema=public
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Formato
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tipos
+        run: npm run typecheck
+
+      - name: Migraciones desde cero
+        run: npx prisma migrate deploy
+
+      - name: Datos de ejemplo
+        run: npm run db:seed
+
+      - name: Pruebas y cobertura
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build

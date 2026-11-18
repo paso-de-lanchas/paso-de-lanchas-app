@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+/* Colores del prototipo (Claude Design). Úsalos como clases: bg-brand, text-ink, etc. */
+:root {
+  --brand: #0b3c5d;
+  --brand-accent: #0b5e70;
+  --surface: #f3f6f8;
+  --ink: #0f2433;
+  --ink-muted: #4a5b68;
+  --line: #d5dee5;
+  --success-bg: #e3f2e8;
+  --success-ink: #1e4d2e;
+}
+
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-accent: var(--brand-accent);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-line: var(--line);
+  --color-success-bg: var(--success-bg);
+  --color-success-ink: var(--success-ink);
+  --font-sans: var(--font-body), system-ui, sans-serif;
+  --font-heading: var(--font-heading-src), system-ui, sans-serif;
+}
+
+body {
+  background: var(--surface);
+  color: var(--ink);
+}

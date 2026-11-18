@@ -7,7 +7,7 @@ El celular del pasajero es su tarjeta: muestra un **QR dinámico** que funciona 
 lo escanea, se cobra del saldo y se le asigna un **lugar en la embarcación** que está cargando en ese muelle, sin pasarse
 nunca de la capacidad. El chofer comparte su ubicación durante el viaje y los pasajeros ven las lanchas en un **mapa en vivo**.
 
-> **Estado:** Sprint 0–1 (planeación, requisitos y prototipo). Todavía no hay código de la aplicación.
+> **Estado:** base del proyecto lista (Next.js 16 + Prisma 7 con las 32 tablas). Empieza la programación por módulos.
 
 ## Roles
 
@@ -20,11 +20,25 @@ nunca de la capacidad. El chofer comparte su ubicación durante el viaje y los p
 
 ## Stack
 
-Next.js + TypeScript · PWA con Serwist · Tailwind CSS + shadcn/ui · PostgreSQL + Prisma · Auth.js + Argon2 · Zod ·
-otplib (QR TOTP) + html5-qrcode · MapLibre GL + OpenStreetMap · Mercado Pago o Stripe (modo prueba) ·
-Vitest + Playwright · GitHub Actions · Vercel + Neon/Supabase.
+Next.js 16 + React 19 + TypeScript · Tailwind CSS 4 · PostgreSQL 17 + Prisma 7 · Zod · Argon2 · otplib (QR TOTP) ·
+MapLibre GL + OpenStreetMap · Mercado Pago (modo prueba) · Vitest + Playwright · GitHub Actions · Vercel + Neon ·
+Docker para los servicios locales.
 
-## Estructura prevista
+## Empezar rápido
+
+```powershell
+docker compose up -d
+Copy-Item .env.example .env.local
+npm ci
+npm run db:migrate
+npm run db:seed; npm run dev
+```
+
+Abre http://localhost:3000. La guía completa (instalar Git, Node, Docker…) está en
+[docs/ENTORNO_DESARROLLO.md](docs/ENTORNO_DESARROLLO.md), y quién programa cada módulo en
+[docs/MODULOS_Y_RESPONSABLES.md](docs/MODULOS_Y_RESPONSABLES.md).
+
+## Estructura
 
 ```
 src/domain/          entidades y reglas de negocio (sin dependencias externas)

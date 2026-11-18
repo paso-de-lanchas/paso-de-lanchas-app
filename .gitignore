@@ -43,3 +43,10 @@ desktop.ini
 ~$*
 *.drawio.bkp
 .$*.bkp
+
+# Prisma Client generado
+src/generated/
+
+# Next.js extra
+*.pem
+.yarn/*

@@ -64,6 +64,11 @@ No hay vista para autoridades: el administrador genera y entrega los reportes.
 | D17 | **Venta**: un solo cobro puede incluir varios boletos (Venta 1:N Abordaje). La venta lleva canal (QR con saldo o taquilla), forma de pago y total; cada Abordaje es un boleto con su lugar y su tarifa. El máximo de boletos por venta es una regla de configuración | Observación del equipo («¿cómo compro más de un boleto?») |
 | D18 | No hay compra de boletos en línea: en línea solo se recarga saldo. El boleto se genera al abordar (QR) o en la taquilla | La salida es «al llenarse» y el lugar se asigna en el muelle |
 | D19 | **Incidente**: si una embarcación sufre un incidente, la salida afectada se reasigna (pasajeros a la lista de espera con prioridad, sin volver a cobrar) o se reembolsa. La fila de embarcaciones sigue siendo la Salida en estado «En fila» | Observación del equipo («reasignar por cualquier accidente») |
+| D20 | Versiones: **Node 24 LTS**, **Next.js 16.4**, **React 19**, **Tailwind 4**, **Prisma 7.10.1 fijado** (la 8.0 aún es RC), **PostgreSQL 17** (misma versión en local, CI y Neon) | Estables y con soporte durante todo el proyecto |
+| D21 | Entorno local: **Docker solo para los servicios** (PostgreSQL de desarrollo en el puerto **5434**, de pruebas en **5435**, Mailpit, Adminer) y Node instalado en cada computadora; la app en Docker queda como opción | En Windows, Next.js dentro de Docker es lento; el 5432 lo ocupa un PostgreSQL instalado en Windows |
+| D22 | Mientras el equipo se integra, `develop` **no exige aprobación** en GitHub (sigue exigiendo pull request y sin force push); cada PR debe llevar al menos un comentario de revisión. `main` sigue con 2 aprobaciones | El equipo aún no participa en las revisiones y bloqueaba todo el avance |
+| D23 | **Reparto por módulos** (19 módulos de los RF): Omar — acceso, superadministración, auditoría; Pamela — operación de muelles, flota, choferes, reportes; Diego — QR, viajes del chofer, mapa, PWA; José — cuenta, vehículos, información al pasajero, horario y avisos, notificaciones; Cova — saldo, abordaje y taquilla, tarifas. Detalle en `docs/MODULOS_Y_RESPONSABLES.md` | Cada quien es dueño de punta a punta de sus módulos |
+| D24 | **Librería de login pendiente** (ADR 0002): Auth.js pasó a mantenimiento (su equipo se unió a Better Auth en 2025). Se decide al inicio del sprint 2 entre Better Auth y una implementación propia sobre nuestras tablas | Evitar adoptar una librería sin futuro |
 
 ## 4. Reglas que SIEMPRE se deben seguir
 
@@ -144,3 +149,17 @@ Este proyecto es **ingeniería de software**: todo código debe:
 - El relacional pasa a **v2.1** (32 tablas): nuevas `sales` e `incidents`; `boardings` apunta a `sales` y el pago, el
   administrador, la computadora y el turno de caja pasan a la venta; `waitlist_entries` gana `priority` y `origin_boarding_id`.
 - **Pendiente:** definir el máximo de boletos por venta; revisión del ER final por el equipo.
+
+### 2026-11-17 — Entorno de desarrollo y base del proyecto
+- PRs #1 (documentación) y #2 (entorno Docker + guía `docs/ENTORNO_DESARROLLO.md`) fusionados a `develop`.
+- `develop` deja de exigir aprobación (D22) porque el equipo aún no revisa.
+- **Base del proyecto** (PR #3): Next.js 16 + TypeScript + Tailwind; `prisma/schema.prisma` con las **32 tablas**,
+  19 enums y 68 llaves foráneas del relacional v2.1; migración inicial con los CHECK (saldo ≥ 0, cupo ≤ capacidad…),
+  índices únicos parciales (un abordaje activo por pasajero y salida, una salida abordando por muelle, un viaje por
+  chofer, una caja abierta por admin), exclusión de tarifas traslapadas y bitácora inmutable. Copia de consulta del
+  script en `docs/base-de-datos/paso_lanchas_v2.1.sql`.
+- Datos de ejemplo (`prisma/seed.ts`): 2 muelles, 5 embarcaciones, tarifas aproximadas, cuentas de prueba por rol.
+- Vitest (13 pruebas: dinero, asignación de lugares y reglas de la BD), Playwright, ESLint, Prettier y CI en GitHub Actions.
+- Pantallas temporales por rol y `GET /api/health`. Reparto de módulos (D23) y ADR 0002 (propuesta, D24).
+- **Siguiente:** decidir ADR 0002, crear los issues del sprint 2 en GitHub, que el equipo prepare su computadora,
+  visita de campo.

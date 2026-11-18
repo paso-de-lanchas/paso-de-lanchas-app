@@ -43,30 +43,45 @@ repositorio:
 
 ## Estado actual
 
-- **Fase:** Sprint 0–1 — planeación, requisitos, prototipo y modelo de datos.
+- **Fase:** Sprint 1 → 2 — base del proyecto lista; empieza la programación por módulos.
 - **Hecho:** planeación v1.2, flujo de GitHub v1.0, requisitos funcionales v1.0, prototipo completo (6 iteraciones,
   31 pantallas), modelo relacional v2.1 y entidad-relación final (incluyen Venta e Incidente, ver contexto D17–D19).
 - **Hecho (2026-11-12):** organización `paso-de-lanchas` con los repos **paso-de-lanchas-app** (público, este) y
   **.github** (perfil y plantillas compartidas); ramas `main` y `develop` protegidas.
-- **Siguiente:** revisión del ER final por el equipo, definir el máximo de boletos por venta, requisitos no
-  funcionales, visita de campo, arranque del proyecto Next.js.
-- **Aún no hay código de la aplicación.**
+- **Hecho (2026-11-17):** entorno Docker (PostgreSQL 17 + base de pruebas + Mailpit + Adminer) y guía
+  [docs/ENTORNO_DESARROLLO.md](docs/ENTORNO_DESARROLLO.md); **base del proyecto** Next.js 16 con las 32 tablas en
+  Prisma 7 (migración inicial con CHECK, índices parciales y bitácora inmutable), datos de ejemplo, pruebas, CI y
+  reparto de módulos en [docs/MODULOS_Y_RESPONSABLES.md](docs/MODULOS_Y_RESPONSABLES.md).
+- **Siguiente:** decidir la librería de login (ADR 0002), crear los issues del sprint 2, que cada quien prepare su
+  computadora, visita de campo (tarifas, capacidades, máximo de boletos por venta), requisitos no funcionales.
+- **Aún no hay módulos programados:** las pantallas por rol son temporales.
 
-## Stack acordado
+## Stack (versiones instaladas)
 
-- **Next.js + TypeScript** (frontend y API en un solo proyecto), PWA con **Serwist**, **Tailwind CSS + shadcn/ui**.
-- **PostgreSQL + Prisma**, **Auth.js** + Argon2, **Zod**, **otplib** (QR TOTP) + **html5-qrcode** (escaneo).
-- **MapLibre GL + OpenStreetMap**; pagos con **Mercado Pago o Stripe** (modo prueba en desarrollo).
-- Tiempo real por consultas periódicas (5–10 s). Hosting: **Vercel** + **Neon o Supabase**. CI: **GitHub Actions**.
-- Pruebas: **Vitest** + **Playwright**. Calidad: ESLint + Prettier, Sentry.
+- **Next.js 16.4** (App Router, `cacheComponents`) + **React 19** + **TypeScript 5**; **Tailwind CSS 4**.
+  ⚠️ Next.js 16 cambió APIs (p. ej. `middleware` ahora es `proxy`): antes de usar una API, lee la guía en
+  `node_modules/next/dist/docs/` (ver `AGENTS.md`).
+- **PostgreSQL 17 + Prisma 7.10** (cliente generado en `src/generated/prisma`, adaptador `@prisma/adapter-pg`,
+  configuración en `prisma.config.ts`). Prisma 7.10.1 está **fijado**: npm marca como "latest" la 8.0 RC, no actualizar.
+- **Zod 4**, **@node-rs/argon2**, **otplib** (QR TOTP). Pendientes de instalar por su módulo: html5-qrcode (Cova),
+  MapLibre GL (Diego), Serwist (Diego), SDK de Mercado Pago (Cova), shadcn/ui (Diego/José), librería de login (ADR 0002).
+- Tiempo real por consultas periódicas (5–10 s). Hosting: **Vercel** + **Neon**. CI: **GitHub Actions**
+  (`.github/workflows/ci.yml`).
+- Pruebas: **Vitest 5** + **Playwright**. Calidad: ESLint 9 + Prettier (el Markdown no se formatea), Sentry.
+- **Node 24 LTS** (`.node-version`, con fnm). Docker Desktop para los servicios locales.
 
-## Estructura prevista (arquitectura limpia dentro de Next.js)
+## Estructura (arquitectura limpia dentro de Next.js)
 
 ```
-src/domain/          entidades y reglas (sin dependencias externas)
-src/application/     casos de uso (AbordarConQR, RecargarSaldo, IniciarViaje, GenerarReporte…)
-src/infrastructure/  repositorios Prisma, pasarela de pagos, firma de QR
-src/app/             páginas por rol + rutas API delgadas (validan y llaman a casos de uso)
+src/domain/<modulo>/          reglas puras (sin dependencias externas) + pruebas *.test.ts
+src/application/<modulo>/     casos de uso (AbordarConQR, RecargarSaldo…) + puertos (interfaces)
+src/infrastructure/<modulo>/  repositorios Prisma, pasarela de pagos, firma de QR
+src/infrastructure/db/        cliente de Prisma compartido
+src/app/                      páginas por rol (pasajero, chofer, admin, superadmin) + rutas API delgadas
+src/lib/env.ts                variables de entorno validadas con Zod
+prisma/                       schema.prisma, migraciones y seed.ts
+tests/e2e, tests/integration  Playwright y pruebas contra la base de pruebas
+docs/                         contexto, entorno, módulos, ADR y script SQL de consulta
 ```
 
 ## Reglas de trabajo (obligatorias)
@@ -83,7 +98,8 @@ src/app/             páginas por rol + rutas API delgadas (validan y llaman a c
 4. **Git:** `main` = producción, `develop` = integración (rama por defecto). Ramas de trabajo desde `develop`:
    `feature|fix|docs|chore|test/<issue>-descripcion`; urgencias en producción: `hotfix/<issue>-descripcion` desde `main`.
    Conventional Commits (tipo en inglés, descripción en español). Todo entra por pull request: hacia `develop` con
-   1 aprobación de otra área y **squash and merge**; de `develop` a `main` al cierre de sprint con 2 aprobaciones y
+   revisión de alguien de otra área (por ahora la aprobación no es obligatoria en GitHub, ver
+   docs/MODULOS_Y_RESPONSABLES.md) y **squash and merge**; de `develop` a `main` al cierre de sprint con 2 aprobaciones y
    **merge commit**, etiqueta `v0.N.0`. Guía: CONTRIBUTING.md del repo `.github`.
 5. **Definición de Hecho:** código revisado, pruebas pasando (≥ 80 % en dominio/casos de uso), lint limpio,
    documentación + este archivo + `docs/CONTEXTO_PROYECTO.md` actualizados.
@@ -92,7 +108,18 @@ src/app/             páginas por rol + rutas API delgadas (validan y llaman a c
 
 ## Comandos
 
-_(Se llenarán cuando exista el código.)_
+```
+docker compose up -d       servicios locales (BD 5434, BD de pruebas 5435, Mailpit 8025); --profile tools: Adminer 8080
+npm run dev                app en http://localhost:3000 (salud: /api/health)
+npm run db:migrate         aplica/crea migraciones en la BD local (-- --name descripcion para crear una nueva)
+npm run db:seed            datos de ejemplo (cuentas de prueba al inicio de prisma/seed.ts)
+npm run db:studio          ver/editar datos locales con Prisma Studio
+npm run db:test:prepare    migra la BD de pruebas
+npm run check              lint + tipos + pruebas (córrelo antes de cada PR)
+npm run test:coverage      pruebas con cobertura (mínimo 80 % en domain/application)
+npm run test:e2e           Playwright (primera vez: npx playwright install chromium)
+npm run format             Prettier
+```
 
 ## Bitácora de cambios
 
@@ -107,12 +134,15 @@ _(Se llenarán cuando exista el código.)_
 | 2026-11-12 | Omar (con Claude) | Repos `paso-de-lanchas-app` y `.github`, ramas `main`/`develop` protegidas, plantillas y etiquetas |
 | 2026-11-13 | Omar (con Claude) | Prototipo iteraciones 3 a 6 (dinero, cuenta, administración, superadministrador y casos especiales): 31 pantallas |
 | 2026-11-13 | Equipo + Claude | ER final (Diagrama_ER-Final) con las observaciones del equipo: Venta (varios boletos en un cobro), Incidente y reasignación a lista de espera; relacional v2.1 con `sales` e `incidents` |
+| 2026-11-17 | Omar (con Claude) | Entorno Docker y guía de instalación (PR #2); `develop` ya no exige aprobación (el equipo aún no participa) |
+| 2026-11-17 | Omar (con Claude) | Base del proyecto: Next.js 16, Prisma 7 con las 32 tablas y reglas de integridad, seed, Vitest/Playwright, CI, pantallas temporales por rol, reparto de módulos y ADR 0002 (propuesta) |
 
 ## Registro de errores y soluciones
 
 | Fecha | Error / problema | Causa | Solución |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-11-17 | `P1000: Authentication failed` al migrar | Un PostgreSQL instalado en Windows ocupaba el puerto 5432 y respondía en lugar del de Docker | El proyecto usa los puertos 5434 (desarrollo) y 5435 (pruebas) |
+| 2026-11-17 | `npm i prisma` instaló la 8.0 RC | npm tiene la etiqueta "latest" en una versión candidata | Prisma y @prisma/client fijados en 7.10.1 |
 
 ## Datos pendientes de confirmar en campo
 

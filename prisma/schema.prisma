@@ -1,0 +1,836 @@
+// =============================================================================
+// Paso de Lanchas Coatzacoalcos ⇄ Villa Allende — esquema de la base de datos
+// Fuente: modelo relacional v2.1 (draw.io, hoja Diagrama_ER-V2), 32 tablas.
+//
+// Convenciones:
+// - Modelos y campos en inglés (PascalCase / camelCase); en PostgreSQL se llaman en
+//   snake_case con @@map / @map, igual que en el diagrama.
+// - Llaves primarias UUID generadas por PostgreSQL (gen_random_uuid()).
+// - Fechas en timestamptz; dinero en numeric(10,2).
+// - Las reglas que Prisma no sabe expresar (CHECK, índices únicos parciales, bitácora
+//   inmutable) están en la migración inicial: prisma/migrations/*_init/migration.sql.
+//
+// Para cambiar algo: edita este archivo → `npm run db:migrate -- --name descripcion`.
+// Nunca edites una migración que ya está en develop.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// -----------------------------------------------------------------------------
+// Tipos enumerados
+// -----------------------------------------------------------------------------
+
+enum UserRole {
+  PASSENGER
+  DRIVER
+  ADMIN
+  SUPERADMIN
+
+  @@map("user_role")
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  BLOCKED
+  INACTIVE
+
+  @@map("user_status")
+}
+
+enum TokenPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+
+  @@map("token_purpose")
+}
+
+enum DeviceStatus {
+  PENDING
+  APPROVED
+  REVOKED
+
+  @@map("device_status")
+}
+
+enum DiscountType {
+  STUDENT
+  INAPAM
+
+  @@map("discount_type")
+}
+
+enum DiscountStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+
+  @@map("discount_status")
+}
+
+enum TxnType {
+  TOPUP_CASH
+  TOPUP_ONLINE
+  FARE_CHARGE
+  REFUND
+  ADJUSTMENT
+
+  @@map("txn_type")
+}
+
+enum PaymentProvider {
+  MERCADO_PAGO
+  STRIPE
+
+  @@map("payment_provider")
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REFUNDED
+
+  @@map("payment_status")
+}
+
+enum VesselKind {
+  BOAT
+  FERRY
+
+  @@map("vessel_kind")
+}
+
+enum VesselStatus {
+  ACTIVE
+  MAINTENANCE
+  SEIZED
+  OUT_OF_SERVICE
+
+  @@map("vessel_status")
+}
+
+enum DepartureStatus {
+  QUEUED
+  BOARDING
+  BOARDING_CLOSED
+  IN_TRANSIT
+  FINISHED
+  CANCELLED
+
+  @@map("departure_status")
+}
+
+enum FareCategory {
+  GENERAL
+  STUDENT
+  INAPAM
+  PEDESTRIAN
+  VEHICLE
+
+  @@map("fare_category")
+}
+
+enum BoardingPayment {
+  BALANCE
+  CASH
+
+  @@map("boarding_payment")
+}
+
+enum BoardingStatus {
+  BOARDED
+  CANCELLED
+  REASSIGNED
+
+  @@map("boarding_status")
+}
+
+enum SaleChannel {
+  QR_BALANCE
+  TICKET_OFFICE
+
+  @@map("sale_channel")
+}
+
+enum IncidentAction {
+  REASSIGN
+  REFUND
+
+  @@map("incident_action")
+}
+
+enum WaitlistStatus {
+  WAITING
+  BOARDED
+  REMOVED
+
+  @@map("waitlist_status")
+}
+
+enum OverrideType {
+  SUSPENSION
+  EXTRA_SERVICE
+
+  @@map("override_type")
+}
+
+// -----------------------------------------------------------------------------
+// Usuarios y acceso
+// -----------------------------------------------------------------------------
+
+model User {
+  id                   String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                String     @unique @db.VarChar(120)
+  passwordHash         String     @map("password_hash") // Argon2id
+  fullName             String     @map("full_name") @db.VarChar(120)
+  phone                String?    @db.VarChar(20)
+  photoUrl             String?    @map("photo_url")
+  role                 UserRole   @default(PASSENGER)
+  status               UserStatus @default(PENDING_VERIFICATION)
+  dockId               String?    @map("dock_id") @db.Uuid // muelle del administrador
+  emailVerifiedAt      DateTime?  @map("email_verified_at") @db.Timestamptz(6)
+  privacyAcceptedAt    DateTime?  @map("privacy_accepted_at") @db.Timestamptz(6)
+  failedLoginAttempts  Int        @default(0) @map("failed_login_attempts")
+  lockedUntil          DateTime?  @map("locked_until") @db.Timestamptz(6)
+  mustChangePassword   Boolean    @default(false) @map("must_change_password")
+  notificationsEnabled Boolean    @default(true) @map("notifications_enabled")
+  createdAt            DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt            DateTime?  @map("deleted_at") @db.Timestamptz(6)
+
+  dock Dock? @relation(fields: [dockId], references: [id], onDelete: SetNull)
+
+  authTokens        AuthToken[]
+  sessions          Session[]
+  pushSubscriptions PushSubscription[]
+  notifications     Notification[]
+  discountRequests  DiscountRequest[]  @relation("DiscountRequester")
+  discountReviews   DiscountRequest[]  @relation("DiscountReviewer")
+  qrCredentials     QrCredential[]
+  vehicles          Vehicle[]
+  wallet            Wallet?
+  auditLogs         AuditLog[]
+
+  devicesRequested AuthorizedDevice[] @relation("DeviceRequester")
+  devicesApproved  AuthorizedDevice[] @relation("DeviceApprover")
+  settingsUpdated  SystemSetting[]
+
+  walletTxnsPerformed WalletTransaction[]
+  cashShifts          CashShift[]
+  salesAsPassenger    Sale[]              @relation("SalePassenger")
+  salesRegistered     Sale[]              @relation("SaleRegistrar")
+
+  vesselStatusChanges VesselStatusHistory[]
+  vesselAssignments   VesselDriver[]
+  departuresDriven    Departure[]           @relation("DepartureDriver")
+  departuresStarted   Departure[]           @relation("DepartureStarter")
+  departuresFinished  Departure[]           @relation("DepartureFinisher")
+  boardings           Boarding[]
+  incidentsReported   Incident[]
+  waitlistAsPassenger WaitlistEntry[]       @relation("WaitlistPassenger")
+  waitlistCreated     WaitlistEntry[]       @relation("WaitlistCreator")
+
+  faresCreated         Fare[]
+  serviceOverrides     DockServiceOverride[]
+  announcementsCreated Announcement[]
+
+  @@index([role, status])
+  @@map("users")
+}
+
+model AuthToken {
+  id        String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String       @map("user_id") @db.Uuid
+  tokenHash String       @unique @map("token_hash")
+  purpose   TokenPurpose
+  expiresAt DateTime     @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime?    @map("used_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@map("auth_tokens")
+}
+
+model Session {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  deviceId       String?  @map("device_id") @db.Uuid
+  sessionToken   String   @unique @map("session_token")
+  expiresAt      DateTime @map("expires_at") @db.Timestamptz(6)
+  lastActivityAt DateTime @default(now()) @map("last_activity_at") @db.Timestamptz(6)
+
+  user   User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device AuthorizedDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model AuthorizedDevice {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dockId          String       @map("dock_id") @db.Uuid
+  name            String       @db.VarChar(60)
+  deviceTokenHash String       @unique @map("device_token_hash")
+  status          DeviceStatus @default(PENDING)
+  requestedById   String       @map("requested_by") @db.Uuid
+  approvedById    String?      @map("approved_by") @db.Uuid
+  approvedAt      DateTime?    @map("approved_at") @db.Timestamptz(6)
+  lastSeenAt      DateTime?    @map("last_seen_at") @db.Timestamptz(6)
+
+  dock        Dock  @relation(fields: [dockId], references: [id], onDelete: Restrict)
+  requestedBy User  @relation("DeviceRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  approvedBy  User? @relation("DeviceApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  sessions   Session[]
+  auditLogs  AuditLog[]
+  cashShifts CashShift[]
+  sales      Sale[]
+
+  @@index([dockId, status])
+  @@map("authorized_devices")
+}
+
+// -----------------------------------------------------------------------------
+// Configuración y control
+// -----------------------------------------------------------------------------
+
+/// Bitácora de auditoría: solo INSERT (un trigger impide UPDATE y DELETE).
+model AuditLog {
+  id        BigInt   @id @default(autoincrement())
+  userId    String?  @map("user_id") @db.Uuid
+  deviceId  String?  @map("device_id") @db.Uuid
+  action    String   @db.VarChar(60)
+  entity    String   @db.VarChar(60)
+  entityId  String?  @map("entity_id")
+  details   Json?    @db.JsonB
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user   User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  device AuthorizedDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+/// Reglas configurables, p. ej. max_tickets_per_sale, qr_step_seconds.
+model SystemSetting {
+  key         String   @id @db.VarChar(60)
+  value       Json     @db.JsonB
+  updatedById String?  @map("updated_by") @db.Uuid
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("system_settings")
+}
+
+model Fare {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vesselKind    VesselKind   @map("vessel_kind")
+  category      FareCategory
+  vehicleTypeId Int?         @map("vehicle_type_id")
+  amount        Decimal      @db.Decimal(10, 2)
+  validFrom     DateTime     @default(now()) @map("valid_from") @db.Timestamptz(6)
+  validTo       DateTime?    @map("valid_to") @db.Timestamptz(6)
+  createdById   String       @map("created_by") @db.Uuid
+
+  vehicleType VehicleType? @relation(fields: [vehicleTypeId], references: [id], onDelete: Restrict)
+  createdBy   User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  boardings   Boarding[]
+
+  @@index([vesselKind, category, validFrom])
+  @@map("fares")
+}
+
+model ServiceHour {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dockId   String   @map("dock_id") @db.Uuid
+  weekday  Int      @db.SmallInt // 0 = domingo … 6 = sábado
+  opensAt  DateTime @map("opens_at") @db.Time(0)
+  closesAt DateTime @map("closes_at") @db.Time(0)
+
+  dock Dock @relation(fields: [dockId], references: [id], onDelete: Cascade)
+
+  @@unique([dockId, weekday])
+  @@map("service_hours")
+}
+
+model DockServiceOverride {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dockId      String       @map("dock_id") @db.Uuid
+  type        OverrideType
+  reason      String
+  startsAt    DateTime     @map("starts_at") @db.Timestamptz(6)
+  endsAt      DateTime?    @map("ends_at") @db.Timestamptz(6)
+  createdById String       @map("created_by") @db.Uuid
+
+  dock      Dock @relation(fields: [dockId], references: [id], onDelete: Cascade)
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([dockId, startsAt])
+  @@map("dock_service_overrides")
+}
+
+model Announcement {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dockId      String?   @map("dock_id") @db.Uuid // NULL = ambos muelles
+  title       String    @db.VarChar(120)
+  message     String
+  startsAt    DateTime  @default(now()) @map("starts_at") @db.Timestamptz(6)
+  endsAt      DateTime? @map("ends_at") @db.Timestamptz(6)
+  createdById String    @map("created_by") @db.Uuid
+
+  dock      Dock? @relation(fields: [dockId], references: [id], onDelete: Cascade)
+  createdBy User  @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([startsAt])
+  @@map("announcements")
+}
+
+// -----------------------------------------------------------------------------
+// Pasajero
+// -----------------------------------------------------------------------------
+
+model DiscountRequest {
+  id                 String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String         @map("user_id") @db.Uuid
+  discountType       DiscountType   @map("discount_type")
+  credentialPhotoUrl String         @map("credential_photo_url")
+  status             DiscountStatus @default(PENDING)
+  reviewedById       String?        @map("reviewed_by") @db.Uuid
+  reviewedAt         DateTime?      @map("reviewed_at") @db.Timestamptz(6)
+  rejectionReason    String?        @map("rejection_reason")
+  validUntil         DateTime?      @map("valid_until") @db.Date
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user       User  @relation("DiscountRequester", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User? @relation("DiscountReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([userId])
+  @@map("discount_requests")
+}
+
+/// Secreto TOTP del QR dinámico, cifrado en la aplicación antes de guardarse.
+model QrCredential {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  totpSecretEnc Bytes     @map("totp_secret_enc")
+  deviceLabel   String?   @map("device_label") @db.VarChar(60)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(6)
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  boardings Boarding[]
+
+  @@index([userId])
+  @@map("qr_credentials")
+}
+
+model Vehicle {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId       String    @map("owner_id") @db.Uuid
+  vehicleTypeId Int       @map("vehicle_type_id")
+  brand         String    @db.VarChar(40)
+  model         String    @db.VarChar(40)
+  color         String    @db.VarChar(30)
+  plate         String    @db.VarChar(15)
+  photoUrl      String?   @map("photo_url")
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  owner       User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  vehicleType VehicleType @relation(fields: [vehicleTypeId], references: [id], onDelete: Restrict)
+  boardings   Boarding[]
+
+  @@unique([ownerId, plate])
+  @@map("vehicles")
+}
+
+model Notification {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  type      String    @db.VarChar(40)
+  title     String    @db.VarChar(120)
+  body      String
+  readAt    DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model PushSubscription {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  endpoint  String   @unique
+  keys      Json     @db.JsonB
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("push_subscriptions")
+}
+
+// -----------------------------------------------------------------------------
+// Saldo y pagos
+// -----------------------------------------------------------------------------
+
+model Wallet {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  balance   Decimal  @default(0) @db.Decimal(10, 2) // CHECK balance >= 0
+  version   Int      @default(0) // control de concurrencia optimista
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  payments     Payment[]
+  transactions WalletTransaction[]
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  walletId      String   @map("wallet_id") @db.Uuid
+  type          TxnType
+  amount        Decimal  @db.Decimal(10, 2) // positivo = entra, negativo = sale
+  balanceAfter  Decimal  @map("balance_after") @db.Decimal(10, 2)
+  saleId        String?  @map("sale_id") @db.Uuid
+  paymentId     String?  @map("payment_id") @db.Uuid
+  cashShiftId   String?  @map("cash_shift_id") @db.Uuid
+  performedById String?  @map("performed_by") @db.Uuid
+  reason        String?
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  wallet      Wallet     @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  sale        Sale?      @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  payment     Payment?   @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  cashShift   CashShift? @relation(fields: [cashShiftId], references: [id], onDelete: Restrict)
+  performedBy User?      @relation(fields: [performedById], references: [id], onDelete: SetNull)
+
+  @@index([walletId, createdAt])
+  @@map("wallet_transactions")
+}
+
+model Payment {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  walletId          String          @map("wallet_id") @db.Uuid
+  provider          PaymentProvider
+  providerPaymentId String?         @unique @map("provider_payment_id") @db.VarChar(80)
+  idempotencyKey    String          @unique @map("idempotency_key") @db.Uuid
+  amount            Decimal         @db.Decimal(10, 2)
+  status            PaymentStatus   @default(PENDING)
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  confirmedAt       DateTime?       @map("confirmed_at") @db.Timestamptz(6)
+
+  wallet       Wallet              @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  transactions WalletTransaction[]
+
+  @@index([walletId, createdAt])
+  @@map("payments")
+}
+
+model CashShift {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  adminId   String    @map("admin_id") @db.Uuid
+  dockId    String    @map("dock_id") @db.Uuid
+  deviceId  String    @map("device_id") @db.Uuid
+  openedAt  DateTime  @default(now()) @map("opened_at") @db.Timestamptz(6)
+  closedAt  DateTime? @map("closed_at") @db.Timestamptz(6)
+  cashTotal Decimal?  @map("cash_total") @db.Decimal(10, 2)
+
+  admin        User                @relation(fields: [adminId], references: [id], onDelete: Restrict)
+  dock         Dock                @relation(fields: [dockId], references: [id], onDelete: Restrict)
+  device       AuthorizedDevice    @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  transactions WalletTransaction[]
+  sales        Sale[]
+
+  @@index([dockId, openedAt])
+  @@map("cash_shifts")
+}
+
+/// Una venta agrupa uno o varios boletos (abordajes) con un solo cobro (D17).
+model Sale {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  channel        SaleChannel
+  passengerId    String?         @map("passenger_id") @db.Uuid
+  registeredById String          @map("registered_by") @db.Uuid
+  deviceId       String          @map("device_id") @db.Uuid
+  cashShiftId    String?         @map("cash_shift_id") @db.Uuid
+  paymentMethod  BoardingPayment @map("payment_method")
+  ticketCount    Int             @map("ticket_count") // CHECK >= 1; máximo en system_settings
+  totalAmount    Decimal         @map("total_amount") @db.Decimal(10, 2)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  passenger    User?               @relation("SalePassenger", fields: [passengerId], references: [id], onDelete: SetNull)
+  registeredBy User                @relation("SaleRegistrar", fields: [registeredById], references: [id], onDelete: Restrict)
+  device       AuthorizedDevice    @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  cashShift    CashShift?          @relation(fields: [cashShiftId], references: [id], onDelete: Restrict)
+  boardings    Boarding[]
+  transactions WalletTransaction[]
+
+  @@index([createdAt])
+  @@index([cashShiftId])
+  @@map("sales")
+}
+
+// -----------------------------------------------------------------------------
+// Flota y operación
+// -----------------------------------------------------------------------------
+
+model Dock {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code      String  @unique @db.VarChar(10) // COA, VAL
+  name      String  @db.VarChar(60)
+  latitude  Decimal @db.Decimal(9, 6)
+  longitude Decimal @db.Decimal(9, 6)
+
+  admins           User[]
+  devices          AuthorizedDevice[]
+  cashShifts       CashShift[]
+  departuresOrigin Departure[]           @relation("DepartureOrigin")
+  departuresDest   Departure[]           @relation("DepartureDestination")
+  waitlist         WaitlistEntry[]
+  serviceHours     ServiceHour[]
+  serviceOverrides DockServiceOverride[]
+  announcements    Announcement[]
+
+  @@map("docks")
+}
+
+model Vessel {
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code              String       @unique @db.VarChar(10)
+  name              String       @db.VarChar(60)
+  kind              VesselKind
+  registration      String       @unique @db.VarChar(30) // matrícula
+  color             String?      @db.VarChar(30)
+  photoUrl          String?      @map("photo_url")
+  passengerCapacity Int          @map("passenger_capacity") // CHECK > 0
+  status            VesselStatus @default(ACTIVE)
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  statusHistory   VesselStatusHistory[]
+  drivers         VesselDriver[]
+  vehicleCapacity VesselVehicleCapacity[]
+  departures      Departure[]
+  incidents       Incident[]
+
+  @@index([status])
+  @@map("vessels")
+}
+
+model VesselStatusHistory {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vesselId    String       @map("vessel_id") @db.Uuid
+  fromStatus  VesselStatus @map("from_status")
+  toStatus    VesselStatus @map("to_status")
+  reason      String
+  changedById String       @map("changed_by") @db.Uuid
+  changedAt   DateTime     @default(now()) @map("changed_at") @db.Timestamptz(6)
+
+  vessel    Vessel @relation(fields: [vesselId], references: [id], onDelete: Cascade)
+  changedBy User   @relation(fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([vesselId, changedAt])
+  @@map("vessel_status_history")
+}
+
+model VesselDriver {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vesselId     String    @map("vessel_id") @db.Uuid
+  driverId     String    @map("driver_id") @db.Uuid
+  assignedAt   DateTime  @default(now()) @map("assigned_at") @db.Timestamptz(6)
+  unassignedAt DateTime? @map("unassigned_at") @db.Timestamptz(6)
+
+  vessel Vessel @relation(fields: [vesselId], references: [id], onDelete: Cascade)
+  driver User   @relation(fields: [driverId], references: [id], onDelete: Restrict)
+
+  @@index([driverId])
+  @@index([vesselId])
+  @@map("vessel_drivers")
+}
+
+model VehicleType {
+  id     Int     @id @default(autoincrement())
+  name   String  @unique @db.VarChar(40)
+  active Boolean @default(true)
+
+  vehicles            Vehicle[]
+  vesselCapacities    VesselVehicleCapacity[]
+  departureCapacities DepartureVehicleCapacity[]
+  fares               Fare[]
+
+  @@map("vehicle_types")
+}
+
+model VesselVehicleCapacity {
+  vesselId      String @map("vessel_id") @db.Uuid
+  vehicleTypeId Int    @map("vehicle_type_id")
+  capacity      Int // CHECK >= 0
+
+  vessel      Vessel      @relation(fields: [vesselId], references: [id], onDelete: Cascade)
+  vehicleType VehicleType @relation(fields: [vehicleTypeId], references: [id], onDelete: Restrict)
+
+  @@id([vesselId, vehicleTypeId])
+  @@map("vessel_vehicle_capacity")
+}
+
+/// Una salida (viaje). "En fila" (QUEUED) es la fila de embarcaciones del muelle.
+model Departure {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vesselId          String          @map("vessel_id") @db.Uuid
+  driverId          String?         @map("driver_id") @db.Uuid
+  originDockId      String          @map("origin_dock_id") @db.Uuid
+  destinationDockId String          @map("destination_dock_id") @db.Uuid
+  status            DepartureStatus @default(QUEUED)
+  queuePosition     Int?            @map("queue_position")
+  passengerCapacity Int             @map("passenger_capacity") // copia congelada de la embarcación
+  occupiedSeats     Int             @default(0) @map("occupied_seats") // CHECK <= passenger_capacity
+  returnOfId        String?         @map("return_of_id") @db.Uuid
+  boardingStartedAt DateTime?       @map("boarding_started_at") @db.Timestamptz(6)
+  boardingClosedAt  DateTime?       @map("boarding_closed_at") @db.Timestamptz(6)
+  departedAt        DateTime?       @map("departed_at") @db.Timestamptz(6)
+  arrivedAt         DateTime?       @map("arrived_at") @db.Timestamptz(6)
+  cancelReason      String?         @map("cancel_reason")
+  startedById       String?         @map("started_by") @db.Uuid
+  finishedById      String?         @map("finished_by") @db.Uuid
+  version           Int             @default(0)
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  vessel          Vessel      @relation(fields: [vesselId], references: [id], onDelete: Restrict)
+  driver          User?       @relation("DepartureDriver", fields: [driverId], references: [id], onDelete: SetNull)
+  originDock      Dock        @relation("DepartureOrigin", fields: [originDockId], references: [id], onDelete: Restrict)
+  destinationDock Dock        @relation("DepartureDestination", fields: [destinationDockId], references: [id], onDelete: Restrict)
+  returnOf        Departure?  @relation("DepartureReturn", fields: [returnOfId], references: [id], onDelete: SetNull)
+  returns         Departure[] @relation("DepartureReturn")
+  startedBy       User?       @relation("DepartureStarter", fields: [startedById], references: [id], onDelete: SetNull)
+  finishedBy      User?       @relation("DepartureFinisher", fields: [finishedById], references: [id], onDelete: SetNull)
+
+  vehicleCapacity DepartureVehicleCapacity[]
+  boardings       Boarding[]
+  locations       TripLocation[]
+  incidents       Incident[]
+
+  @@index([originDockId, status, queuePosition])
+  @@index([vesselId, createdAt])
+  @@map("departures")
+}
+
+model DepartureVehicleCapacity {
+  departureId   String @map("departure_id") @db.Uuid
+  vehicleTypeId Int    @map("vehicle_type_id")
+  capacity      Int
+  occupied      Int    @default(0) // CHECK <= capacity
+
+  departure   Departure   @relation(fields: [departureId], references: [id], onDelete: Cascade)
+  vehicleType VehicleType @relation(fields: [vehicleTypeId], references: [id], onDelete: Restrict)
+
+  @@id([departureId, vehicleTypeId])
+  @@map("departure_vehicle_capacity")
+}
+
+/// Un boleto: un lugar ocupado en una salida.
+model Boarding {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  departureId    String         @map("departure_id") @db.Uuid
+  saleId         String         @map("sale_id") @db.Uuid
+  passengerId    String?        @map("passenger_id") @db.Uuid
+  vehicleId      String?        @map("vehicle_id") @db.Uuid
+  seatNumber     Int            @map("seat_number")
+  fareId         String         @map("fare_id") @db.Uuid
+  fareCategory   FareCategory   @map("fare_category")
+  amountCharged  Decimal        @map("amount_charged") @db.Decimal(10, 2)
+  qrCredentialId String?        @map("qr_credential_id") @db.Uuid
+  qrTimeStep     BigInt?        @map("qr_time_step")
+  ticketCode     String?        @unique @map("ticket_code") @db.VarChar(12)
+  status         BoardingStatus @default(BOARDED)
+  cancelReason   String?        @map("cancel_reason")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  departure    Departure     @relation(fields: [departureId], references: [id], onDelete: Restrict)
+  sale         Sale          @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  passenger    User?         @relation(fields: [passengerId], references: [id], onDelete: SetNull)
+  vehicle      Vehicle?      @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  fare         Fare          @relation(fields: [fareId], references: [id], onDelete: Restrict)
+  qrCredential QrCredential? @relation(fields: [qrCredentialId], references: [id], onDelete: SetNull)
+
+  waitlistOrigin WaitlistEntry[] @relation("WaitlistOriginBoarding")
+  waitlistResult WaitlistEntry[] @relation("WaitlistResultBoarding")
+
+  // QR de un solo uso: el mismo código (credencial + paso de tiempo) no se cobra dos veces.
+  @@unique([qrCredentialId, qrTimeStep])
+  @@unique([departureId, seatNumber])
+  @@index([saleId])
+  @@index([passengerId, createdAt])
+  @@map("boardings")
+}
+
+model Incident {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vesselId     String         @map("vessel_id") @db.Uuid
+  departureId  String?        @map("departure_id") @db.Uuid
+  type         String         @db.VarChar(40)
+  description  String
+  action       IncidentAction
+  reportedById String         @map("reported_by") @db.Uuid
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  vessel     Vessel     @relation(fields: [vesselId], references: [id], onDelete: Restrict)
+  departure  Departure? @relation(fields: [departureId], references: [id], onDelete: SetNull)
+  reportedBy User       @relation(fields: [reportedById], references: [id], onDelete: Restrict)
+
+  @@index([vesselId, createdAt])
+  @@map("incidents")
+}
+
+model WaitlistEntry {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dockId           String         @map("dock_id") @db.Uuid
+  passengerId      String?        @map("passenger_id") @db.Uuid
+  label            String?        @db.VarChar(80) // nombre de quien no tiene cuenta
+  status           WaitlistStatus @default(WAITING)
+  priority         Int            @default(0) // > 0 = reasignado por incidente (D19)
+  originBoardingId String?        @map("origin_boarding_id") @db.Uuid
+  boardingId       String?        @map("boarding_id") @db.Uuid
+  createdById      String         @map("created_by") @db.Uuid
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  dock           Dock      @relation(fields: [dockId], references: [id], onDelete: Restrict)
+  passenger      User?     @relation("WaitlistPassenger", fields: [passengerId], references: [id], onDelete: SetNull)
+  originBoarding Boarding? @relation("WaitlistOriginBoarding", fields: [originBoardingId], references: [id], onDelete: SetNull)
+  boarding       Boarding? @relation("WaitlistResultBoarding", fields: [boardingId], references: [id], onDelete: SetNull)
+  createdBy      User      @relation("WaitlistCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([dockId, status, priority, createdAt])
+  @@map("waitlist_entries")
+}
+
+model TripLocation {
+  id          BigInt   @id @default(autoincrement())
+  departureId String   @map("departure_id") @db.Uuid
+  latitude    Decimal  @db.Decimal(9, 6)
+  longitude   Decimal  @db.Decimal(9, 6)
+  speedKmh    Decimal? @map("speed_kmh") @db.Decimal(5, 1)
+  heading     Decimal? @db.Decimal(5, 1)
+  accuracyM   Decimal? @map("accuracy_m") @db.Decimal(6, 1)
+  recordedAt  DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  departure Departure @relation(fields: [departureId], references: [id], onDelete: Cascade)
+
+  @@index([departureId, recordedAt])
+  @@map("trip_locations")
+}

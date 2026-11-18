@@ -24,7 +24,7 @@ services:
       TZ: America/Mexico_City
       PGTZ: America/Mexico_City
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${DB_PORT:-5434}:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
@@ -45,7 +45,7 @@ services:
       TZ: America/Mexico_City
       PGTZ: America/Mexico_City
     ports:
-      - "${DB_TEST_PORT:-5433}:5432"
+      - "${DB_TEST_PORT:-5435}:5432"
     tmpfs:
       - /var/lib/postgresql/data
     healthcheck:

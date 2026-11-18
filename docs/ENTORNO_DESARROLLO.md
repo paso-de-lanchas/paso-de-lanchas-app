@@ -2,7 +2,7 @@
 
 > Guía para que las 5 personas del equipo tengan **el mismo entorno** en su computadora, sepan **qué cuentas** hay que
 > crear (y quién las crea) y entiendan **dónde vive la base de datos** en cada etapa.
-> Versión 1.0 · 2026-11-17 · Sistema principal: Windows 10/11 (al final hay notas para macOS).
+> Versión 1.1 · 2026-11-17 · Sistema principal: Windows 10/11 (al final hay notas para macOS).
 
 ---
 
@@ -220,8 +220,8 @@ Debes ver `db`, `db-test` y `mailpit` en estado *running (healthy)*. Qué quedó
 
 | Servicio | Dirección | Usuario / contraseña |
 |---|---|---|
-| PostgreSQL de desarrollo | `localhost:5432`, base `paso_lanchas` | `paso` / `paso_dev` |
-| PostgreSQL de pruebas | `localhost:5433`, base `paso_lanchas_test` | `paso` / `paso_test` |
+| PostgreSQL de desarrollo | `localhost:5434`, base `paso_lanchas` | `paso` / `paso_dev` |
+| PostgreSQL de pruebas | `localhost:5435`, base `paso_lanchas_test` | `paso` / `paso_test` |
 | Mailpit (correos atrapados) | http://localhost:8025 | — |
 | Adminer (opcional) | http://localhost:8080 | servidor `db`, `paso` / `paso_dev` |
 
@@ -233,15 +233,26 @@ docker compose --profile tools up -d
 
 Estas contraseñas son **solo para tu computadora**; en la nube son otras y nadie las tiene en su equipo.
 
-### 3.4 Correr la app (cuando ya exista el proyecto Next.js)
+### 3.4 Correr la app
 
-> Todavía no hay código. Estos pasos aplican en cuanto se haga el PR de arranque del proyecto Next.js.
+Con los servicios de Docker encendidos:
 
 ```powershell
-npm ci                        # instala dependencias exactas del package-lock.json
-npx prisma migrate dev        # crea/actualiza las tablas en TU base local
-npm run db:seed               # carga datos de ejemplo (muelles, tarifas, usuarios de prueba)
+npm ci                        # instala dependencias exactas del package-lock.json (y genera el cliente de Prisma)
+npm run db:migrate            # crea/actualiza las 32 tablas en TU base local
+npm run db:seed               # carga datos de ejemplo (muelles, flota, tarifas, usuarios de prueba)
 npm run dev                   # abre http://localhost:3000
+```
+
+Comprueba que todo quedó bien abriendo **http://localhost:3000/api/health**: debe decir
+`{"status":"ok","database":"ok"}`. Las cuentas de prueba y su contraseña están al inicio de `prisma/seed.ts`.
+
+Para las pruebas:
+
+```powershell
+npm run db:test:prepare       # una vez por sesión: prepara la base de pruebas (puerto 5435)
+npm test                      # pruebas unitarias y de integración
+npm run check                 # lint + tipos + pruebas: córrelo antes de abrir tu PR
 ```
 
 **Alternativa todo en Docker** (si no quieres instalar Node o algo falla en tu equipo):
@@ -310,12 +321,11 @@ git switch develop
 git pull
 git switch -c feature/23-escaneo-qr-admin     # tu rama, con el número del issue
 docker compose up -d
-npx prisma migrate dev                        # por si entraron migraciones nuevas
+npm run db:migrate                            # por si entraron migraciones nuevas
 npm run dev
 
 # ... programar, probar ...
-npm run lint
-npm test
+npm run check
 git add .
 git commit -m "feat(boarding): cobrar y asignar lugar al escanear QR"
 git push -u origin feature/23-escaneo-qr-admin
@@ -330,9 +340,9 @@ gh pr create --base develop                   # o desde la página de GitHub
 |---|---|---|
 | `docker: command not found` / Docker no abre | Docker Desktop cerrado o WSL viejo | Abre Docker Desktop; ejecuta `wsl --update` |
 | *Virtualization support not detected* | Virtualización apagada en BIOS | Paso 1.1 |
-| `port 5432 is already allocated` | Tienes otro PostgreSQL instalado en Windows | Crea un archivo `.env` junto a `compose.yaml` con `DB_PORT=5434` y cambia el puerto en `DATABASE_URL` de tu `.env.local` |
+| `port 5434 is already allocated` o `Authentication failed` en la base | Otro programa usa ese puerto | Crea un archivo `.env` junto a `compose.yaml` con `DB_PORT=5436` y cambia el puerto en `DATABASE_URL` de tu `.env.local`. (Por eso el proyecto no usa el 5432: lo ocupa PostgreSQL si lo instalaste en Windows.) |
 | `fnm` no se reconoce | No se agregó al perfil de PowerShell | Repite el paso 1.4 y abre una terminal nueva |
-| `Can't reach database server at localhost:5432` | Los contenedores no están encendidos | `docker compose up -d` y `docker compose ps` |
+| `Can't reach database server at localhost:5434` | Los contenedores no están encendidos | `docker compose up -d` y `docker compose ps` |
 | Los cambios no se recargan con `--profile app` | Windows no avisa los cambios a Docker | Ya está activado el *polling*; si sigue lento, usa Node local (3.4) |
 | Archivos con todas las líneas cambiadas en el PR | Finales de línea CRLF | El repo fuerza LF con `.gitattributes`; ejecuta `git add --renormalize .` |
 | Docker ocupa mucho disco | Imágenes viejas | `docker system prune` (no borra tus volúmenes) |
