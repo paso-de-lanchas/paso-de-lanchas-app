@@ -43,7 +43,7 @@ repositorio:
 
 ## Estado actual
 
-- **Fase:** Sprint 1 → 2 — base del proyecto lista; empieza la programación por módulos.
+- **Fase:** **Sprint 2 · Cimientos** (del 18 al sábado 21 de noviembre de 2026, 9:00 p. m.) — programación por módulos.
 - **Hecho:** planeación v1.2, flujo de GitHub v1.0, requisitos funcionales v1.0, prototipo completo (6 iteraciones,
   31 pantallas), modelo relacional v2.1 y entidad-relación final (incluyen Venta e Incidente, ver contexto D17–D19).
 - **Hecho (2026-11-12):** organización `paso-de-lanchas` con los repos **paso-de-lanchas-app** (público, este) y
@@ -52,8 +52,13 @@ repositorio:
   [docs/ENTORNO_DESARROLLO.md](docs/ENTORNO_DESARROLLO.md); **base del proyecto** Next.js 16 con las 32 tablas en
   Prisma 7 (migración inicial con CHECK, índices parciales y bitácora inmutable), datos de ejemplo, pruebas, CI y
   reparto de módulos en [docs/MODULOS_Y_RESPONSABLES.md](docs/MODULOS_Y_RESPONSABLES.md).
-- **Siguiente:** decidir la librería de login (ADR 0002), crear los issues del sprint 2, que cada quien prepare su
-  computadora, visita de campo (tarifas, capacidades, máximo de boletos por venta), requisitos no funcionales.
+- **Hecho (2026-11-18):** PR #3 (base del proyecto) fusionado a `develop` con CI en verde; guía de contribución
+  actualizada en el repo `.github`; los 5 integrantes ya son miembros de la organización.
+- **Sprint 2 en curso:** milestone *Sprint 2 · Cimientos* con 17 issues (#4–#20), cada uno con historia, criterios de
+  aceptación, RF y una sección **"Cómo programarlo, paso a paso"**; todos asignados. Tabla de issues por persona en
+  [docs/MODULOS_Y_RESPONSABLES.md](docs/MODULOS_Y_RESPONSABLES.md).
+- **Siguiente:** que cada quien cierre #4 (preparar su computadora), Omar decide #5 (librería de login, bloquea el
+  login), visita de campo (tarifas, capacidades, máximo de boletos por venta), requisitos no funcionales.
 - **Aún no hay módulos programados:** las pantallas por rol son temporales.
 
 ## Stack (versiones instaladas)
@@ -136,6 +141,7 @@ npm run format             Prettier
 | 2026-11-13 | Equipo + Claude | ER final (Diagrama_ER-Final) con las observaciones del equipo: Venta (varios boletos en un cobro), Incidente y reasignación a lista de espera; relacional v2.1 con `sales` e `incidents` |
 | 2026-11-17 | Omar (con Claude) | Entorno Docker y guía de instalación (PR #2); `develop` ya no exige aprobación (el equipo aún no participa) |
 | 2026-11-17 | Omar (con Claude) | Base del proyecto: Next.js 16, Prisma 7 con las 32 tablas y reglas de integridad, seed, Vitest/Playwright, CI, pantallas temporales por rol, reparto de módulos y ADR 0002 (propuesta) |
+| 2026-11-18 | Omar (con Claude) | PR #3 fusionado; sprint 2 planeado en GitHub: milestone (vence sáb 21 nov, 9 p. m.) y 17 issues con pasos de programación, asignados a los 5; guía de contribución actualizada |
 
 ## Registro de errores y soluciones
 
@@ -143,6 +149,7 @@ npm run format             Prettier
 |---|---|---|---|
 | 2026-11-17 | `P1000: Authentication failed` al migrar | Un PostgreSQL instalado en Windows ocupaba el puerto 5432 y respondía en lugar del de Docker | El proyecto usa los puertos 5434 (desarrollo) y 5435 (pruebas) |
 | 2026-11-17 | `npm i prisma` instaló la 8.0 RC | npm tiene la etiqueta "latest" en una versión candidata | Prisma y @prisma/client fijados en 7.10.1 |
+| 2026-11-18 | `npm run check` falla en `database-rules.test.ts` | Docker Desktop estaba cerrado (la prueba de integración necesita la base de pruebas) | Abrir Docker Desktop, `docker compose up -d` y `npm run db:test:prepare` (la base de pruebas se vacía al reiniciar Docker) |
 
 ## Datos pendientes de confirmar en campo
 

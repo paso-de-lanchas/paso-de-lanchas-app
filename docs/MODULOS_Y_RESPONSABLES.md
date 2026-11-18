@@ -38,9 +38,10 @@ en `develop`, pero **cada PR debe tener al menos un comentario de revisión**.
 | José | Pamela | Cova | Omar |
 | Cova | Omar | — | Omar |
 
-## 3. Orden de trabajo (sprints de 2 semanas, propuesto)
+## 3. Orden de trabajo (propuesto)
 
-Los módulos dependen unos de otros: no se puede abordar sin login, ni cobrar sin saldo y tarifas. Por eso este orden:
+Los módulos dependen unos de otros: no se puede abordar sin login, ni cobrar sin saldo y tarifas. Por eso este orden.
+El **sprint 2** es corto para arrancar (del 18 al **sábado 21 de noviembre, 9:00 p. m.**); los siguientes son de 2 semanas.
 
 | Sprint | Qué se construye | Quién |
 |---|---|---|
@@ -65,6 +66,19 @@ Los módulos dependen unos de otros: no se puede abordar sin login, ni cobrar si
 | | Notificaciones (RF-106–109) | José |
 | | App instalable y modo sin conexión (RF-125–127) | Diego |
 | **7 · Cierre** | Pruebas de punta a punta, corrección de errores, despliegue a producción | Todos |
+
+### Issues del sprint 2 en GitHub
+
+Todos están en el milestone **Sprint 2 · Cimientos** y cada uno trae la sección **"Cómo programarlo, paso a paso"**.
+
+| Quién | Issues |
+|---|---|
+| Todos | #4 Preparar mi computadora |
+| Omar | #5 Decidir la librería de login (bloquea el login) · #6 Registro · #7 Iniciar y cerrar sesión por rol · #8 Recuperar y cambiar contraseña · #9 Protección de cuentas del personal |
+| Pamela | #10 Tablero del sprint · #11 Registrar embarcaciones · #12 Estados e historial · #13 Choferes |
+| Cova | #14 Tarifas con vigencia · #15 Cálculo de la tarifa vigente (Strategy) |
+| José | #16 Aviso de privacidad y perfil · #17 Cancelar cuenta · #18 Solicitud de descuento |
+| Diego | #19 Componentes compartidos y navegación · #20 QR dinámico sin internet |
 
 ## 4. Dónde va el código de cada módulo
 

@@ -163,3 +163,13 @@ Este proyecto es **ingeniería de software**: todo código debe:
 - Pantallas temporales por rol y `GET /api/health`. Reparto de módulos (D23) y ADR 0002 (propuesta, D24).
 - **Siguiente:** decidir ADR 0002, crear los issues del sprint 2 en GitHub, que el equipo prepare su computadora,
   visita de campo.
+
+### 2026-11-18 — Arranca el sprint 2
+- PR #3 fusionado a `develop` (CI en verde). Guía de contribución del repo `.github` actualizada (PR #1 de ese repo):
+  enlaza la guía del entorno, pide `npm run check` antes de subir y aclara que nadie fusiona sin un comentario de revisión.
+- Los 5 integrantes ya son miembros de la organización (Diego se unió el 18).
+- Sprint 2 · Cimientos planeado en GitHub: milestone que vence el **sábado 21 de noviembre, 9:00 p. m.** (sprint corto
+  para arrancar) y **17 issues (#4–#20)** asignados, cada uno con historia, criterios de aceptación, RF y pasos de
+  programación (rama, archivos, casos de uso, pruebas y pantalla). Los módulos que no son login empiezan sin esperar a
+  #7 usando los datos del seed.
+- **Siguiente:** #4 (todos preparan su computadora), #5 (Omar decide la librería de login), visita de campo.
