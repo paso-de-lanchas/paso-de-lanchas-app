@@ -32,8 +32,8 @@ de regreso. Flota ilimitada con estados; al pasajero solo se le muestran unidade
 
 Los documentos de planeación (Word) y los diagramas viven **en línea, en la carpeta compartida del equipo**, no en este
 repositorio:
-- 01 Planeación inicial v1.2 (investigación, alcance, arquitectura, plan por sprint e integrante).
-- 02 Flujo de trabajo en GitHub v1.0.
+- 01 Planeación inicial v1.3 (investigación, alcance, arquitectura, plan por sprint e integrante; v1.3 actualiza el stack).
+- 02 Flujo de trabajo en GitHub v1.1 (v1.1: repo público, revisión sin aprobación obligatoria en `develop`, CI real).
 - 03 Requisitos funcionales v1.0 (127 RF, RF-001 a RF-127).
 - Libro de diagramas (draw.io): modelo relacional v2.1 (Diagrama_ER-V2, 32 tablas) y entidad-relación final en
   notación Chen (Diagrama_ER-Final, 28 entidades). Las hojas Diagrama_ER-Chen y su copia son las versiones de trabajo
@@ -142,6 +142,7 @@ npm run format             Prettier
 | 2026-11-17 | Omar (con Claude) | Entorno Docker y guía de instalación (PR #2); `develop` ya no exige aprobación (el equipo aún no participa) |
 | 2026-11-17 | Omar (con Claude) | Base del proyecto: Next.js 16, Prisma 7 con las 32 tablas y reglas de integridad, seed, Vitest/Playwright, CI, pantallas temporales por rol, reparto de módulos y ADR 0002 (propuesta) |
 | 2026-11-18 | Omar (con Claude) | PR #3 fusionado; sprint 2 planeado en GitHub: milestone (vence sáb 21 nov, 9 p. m.) y 17 issues con pasos de programación, asignados a los 5; guía de contribución actualizada |
+| 2026-11-22 | Omar (con Claude) | Documentos Word actualizados: 01 Planeación v1.3 (Node 24, Next.js 16, Prisma 7, PostgreSQL 17, Neon sin Supabase, Docker, login en ADR 0002, proxy) y 02 Flujo de GitHub v1.1 (repo público, revisión sin aprobación obligatoria, CI real) |
 
 ## Registro de errores y soluciones
 
