@@ -157,7 +157,7 @@ que las páginas nuevas dentro de ellas pueden llamar a `requireRole` directamen
 
 | Decisión | Bloquea a | Quién decide | Para cuándo |
 |---|---|---|---|
-| Auth.js o Better Auth (ADR 0002) | Omar (login) y todos los demás | Omar | Inicio del sprint 2 |
+| ~~Librería de login (ADR 0002)~~ **Decidido 2026-11-22: login propio** | Omar (login) y todos los demás | Omar | Hecho |
 | Máximo de boletos por venta (hoy 5 en el seed) | Cova (abordaje) | Equipo + visita de campo | Sprint 3 |
 | Tarifas reales de lancha y transbordador | Cova (tarifas) | Visita de campo | Sprint 2 |
 | Mercado Pago (propuesto) o Stripe | Cova (recarga en línea) | Omar + Cova | Sprint 3 |

@@ -68,7 +68,7 @@ No hay vista para autoridades: el administrador genera y entrega los reportes.
 | D21 | Entorno local: **Docker solo para los servicios** (PostgreSQL de desarrollo en el puerto **5434**, de pruebas en **5435**, Mailpit, Adminer) y Node instalado en cada computadora; la app en Docker queda como opción | En Windows, Next.js dentro de Docker es lento; el 5432 lo ocupa un PostgreSQL instalado en Windows |
 | D22 | Mientras el equipo se integra, `develop` **no exige aprobación** en GitHub (sigue exigiendo pull request y sin force push); cada PR debe llevar al menos un comentario de revisión. `main` sigue con 2 aprobaciones | El equipo aún no participa en las revisiones y bloqueaba todo el avance |
 | D23 | **Reparto por módulos** (19 módulos de los RF): Omar — acceso, superadministración, auditoría; Pamela — operación de muelles, flota, choferes, reportes; Diego — QR, viajes del chofer, mapa, PWA; José — cuenta, vehículos, información al pasajero, horario y avisos, notificaciones; Cova — saldo, abordaje y taquilla, tarifas. Detalle en `docs/MODULOS_Y_RESPONSABLES.md` | Cada quien es dueño de punta a punta de sus módulos |
-| D24 | **Librería de login pendiente** (ADR 0002): Auth.js pasó a mantenimiento (su equipo se unió a Better Auth en 2025). Se decide al inicio del sprint 2 entre Better Auth y una implementación propia sobre nuestras tablas | Evitar adoptar una librería sin futuro |
+| D24 | **Login propio, sin librería** (ADR 0002 aceptada el 2026-11-22): Argon2id + sesiones en la tabla `sessions` (solo el hash del token) con cookie `HttpOnly`, `requireRole` en servidor y `proxy.ts` solo como filtro rápido. Se descartó Auth.js (en mantenimiento) y Better Auth (exige sus tablas `account`/`verification` y cambiar `users`/`sessions`; las reglas del personal se programan igual) | Usar nuestras tablas tal cual y entender/controlar cada parte |
 
 ## 4. Reglas que SIEMPRE se deben seguir
 
@@ -173,3 +173,8 @@ Este proyecto es **ingeniería de software**: todo código debe:
   programación (rama, archivos, casos de uso, pruebas y pantalla). Los módulos que no son login empiezan sin esperar a
   #7 usando los datos del seed.
 - **Siguiente:** #4 (todos preparan su computadora), #5 (Omar decide la librería de login), visita de campo.
+
+### 2026-11-22 — Decisión del login
+- ADR 0002 **aceptada**: login propio sobre nuestras tablas (D24). No se instala librería de autenticación.
+- Omar empieza a programar sus issues: #7 (iniciar y cerrar sesión, `requireRole`) primero, porque los demás módulos
+  lo necesitan para quitar los usuarios de ejemplo; luego #6, #8 y #9.
