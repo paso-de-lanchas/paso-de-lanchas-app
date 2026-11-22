@@ -62,6 +62,7 @@ repositorio:
   máximo de boletos por venta), requisitos no funcionales.
 - **Login listo (issue #7, 2026-11-22):** inicio y cierre de sesión por rol, `requireRole` / `assertRole` /
   `requireApiRole` en `src/lib/auth/require-role.ts` y `src/proxy.ts`. Uso en docs/MODULOS_Y_RESPONSABLES.md.
+  **Seguridad del personal (#9):** bloqueo por intentos, computadoras autorizadas (admin/superadmin) e inactividad.
   Las demás pantallas por rol siguen temporales.
 
 ## Stack (versiones instaladas)
@@ -122,6 +123,7 @@ docker compose up -d       servicios locales (BD 5434, BD de pruebas 5435, Mailp
 npm run dev                app en http://localhost:3000 (salud: /api/health)
 npm run db:migrate         aplica/crea migraciones en la BD local (-- --name descripcion para crear una nueva)
 npm run db:seed            datos de ejemplo (cuentas de prueba al inicio de prisma/seed.ts)
+npm run dev:aprobar-computadoras  autoriza en la BD local la computadora pendiente (para entrar como admin/superadmin)
 npm run db:studio          ver/editar datos locales con Prisma Studio
 npm run db:test:prepare    migra la BD de pruebas
 npm run check              lint + tipos + pruebas (córrelo antes de cada PR)
@@ -150,6 +152,7 @@ npm run format             Prettier
 | 2026-11-22 | Omar (con Claude) | Revisión de los PRs #22–#25; issue #27: índices únicos parciales (una asignación activa por chofer y embarcación, una solicitud de descuento pendiente por pasajero) |
 | 2026-11-22 | Omar (con Claude) | ADR 0002 aceptada: login propio (Argon2 + sesiones en BD, `requireRole` en servidor); se descartan Auth.js y Better Auth (#5) |
 | 2026-11-22 | Omar (con Claude) | Login por rol (#7): Argon2, sesiones en BD con hash del token y cookie HttpOnly, `requireRole`/`assertRole`/`requireApiRole`, `proxy.ts`, pantalla de login y cierre de sesión, bitácora; 40 pruebas unitarias y 10 de Playwright |
+| 2026-11-22 | Omar (con Claude) | Seguridad del personal (#9): bloqueo por intentos fallidos, computadoras autorizadas con cookie de dispositivo, cierre por inactividad, `dock_id` opcional en `authorized_devices`, script `dev:aprobar-computadoras` |
 
 ## Registro de errores y soluciones
 

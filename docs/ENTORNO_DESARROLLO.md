@@ -241,6 +241,7 @@ Con los servicios de Docker encendidos:
 npm ci                        # instala dependencias exactas del package-lock.json (y genera el cliente de Prisma)
 npm run db:migrate            # crea/actualiza las 32 tablas en TU base local
 npm run db:seed               # carga datos de ejemplo (muelles, flota, tarifas, usuarios de prueba)
+npm run dev:aprobar-computadoras  # (cuando la pidas) autoriza tu navegador para entrar como admin/superadmin
 npm run dev                   # abre http://localhost:3000
 ```
 

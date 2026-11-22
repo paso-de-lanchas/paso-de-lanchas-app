@@ -19,3 +19,24 @@ export function sessionExpiresAt(role: Role, now: Date): Date {
 export function isSessionExpired(expiresAt: Date, now: Date): boolean {
   return expiresAt.getTime() <= now.getTime();
 }
+
+/**
+ * Expiración por inactividad (RF-012) para administrador y superadministrador: si no hacen
+ * nada durante `session_timeout_minutes_staff`, la sesión se cierra.
+ */
+export const DEFAULT_STAFF_IDLE_MINUTES = 30;
+
+/** Para no escribir en la base en cada petición, la actividad se registra a lo más una vez por minuto. */
+export const ACTIVITY_WRITE_INTERVAL_MS = 60_000;
+
+export function hasIdleTimeout(role: Role): boolean {
+  return role === "ADMIN" || role === "SUPERADMIN";
+}
+
+export function isIdleExpired(lastActivityAt: Date, now: Date, idleMinutes: number): boolean {
+  return now.getTime() - lastActivityAt.getTime() >= idleMinutes * 60_000;
+}
+
+export function shouldRecordActivity(lastActivityAt: Date, now: Date): boolean {
+  return now.getTime() - lastActivityAt.getTime() >= ACTIVITY_WRITE_INTERVAL_MS;
+}

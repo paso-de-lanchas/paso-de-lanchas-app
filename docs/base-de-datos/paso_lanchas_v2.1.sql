@@ -946,3 +946,6 @@ CREATE UNIQUE INDEX "vessel_drivers_one_active_assignment"
 CREATE UNIQUE INDEX "discount_requests_one_pending_per_user"
   ON "discount_requests" ("user_id")
   WHERE "status" = 'PENDING';
+
+-- Migración 20261122095058_computadoras_de_oficina (issue #9): computadoras del superadministrador sin muelle.
+ALTER TABLE "authorized_devices" ALTER COLUMN "dock_id" DROP NOT NULL;

@@ -69,6 +69,7 @@ No hay vista para autoridades: el administrador genera y entrega los reportes.
 | D22 | Mientras el equipo se integra, `develop` **no exige aprobación** en GitHub (sigue exigiendo pull request y sin force push); cada PR debe llevar al menos un comentario de revisión. `main` sigue con 2 aprobaciones | El equipo aún no participa en las revisiones y bloqueaba todo el avance |
 | D23 | **Reparto por módulos** (19 módulos de los RF): Omar — acceso, superadministración, auditoría; Pamela — operación de muelles, flota, choferes, reportes; Diego — QR, viajes del chofer, mapa, PWA; José — cuenta, vehículos, información al pasajero, horario y avisos, notificaciones; Cova — saldo, abordaje y taquilla, tarifas. Detalle en `docs/MODULOS_Y_RESPONSABLES.md` | Cada quien es dueño de punta a punta de sus módulos |
 | D24 | **Login propio, sin librería** (ADR 0002 aceptada el 2026-11-22): Argon2id + sesiones en la tabla `sessions` (solo el hash del token) con cookie `HttpOnly`, `requireRole` en servidor y `proxy.ts` solo como filtro rápido. Se descartó Auth.js (en mantenimiento) y Better Auth (exige sus tablas `account`/`verification` y cambiar `users`/`sessions`; las reglas del personal se programan igual) | Usar nuestras tablas tal cual y entender/controlar cada parte |
+| D25 | **Seguridad del personal** (issue #9): bloqueo de 15 min (`lockout_minutes`) tras `max_failed_logins` intentos para chofer, admin y superadmin, no para el pasajero; computadora autorizada solo para admin (de su muelle) y superadmin (cualquiera aprobada); inactividad de `session_timeout_minutes_staff` para admin y superadmin. `authorized_devices.dock_id` pasa a ser opcional: sin muelle = computadora de oficina del superadmin | Al pasajero no se le puede dejar sin abordar con intentos maliciosos; el chofer usa su propio celular; el superadmin no tiene muelle |
 
 ## 4. Reglas que SIEMPRE se deben seguir
 
@@ -178,3 +179,7 @@ Este proyecto es **ingeniería de software**: todo código debe:
 - ADR 0002 **aceptada**: login propio sobre nuestras tablas (D24). No se instala librería de autenticación.
 - Omar empieza a programar sus issues: #7 (iniciar y cerrar sesión, `requireRole`) primero, porque los demás módulos
   lo necesitan para quitar los usuarios de ejemplo; luego #6, #8 y #9.
+- PRs #28 (índices únicos, #27), #29 (ADR) y #30 (login por rol, #7) fusionados a `develop`.
+- Seguridad del personal (#9, D25): bloqueo por intentos, computadoras autorizadas con cookie de dispositivo (solo su
+  hash en la base), cierre por inactividad, sesiones cortadas si se retira la computadora y bitácora de cada rechazo.
+  Script de desarrollo `npm run dev:aprobar-computadoras` mientras llega la pantalla del superadmin (sprint 3).

@@ -278,7 +278,7 @@ model Session {
 
 model AuthorizedDevice {
   id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  dockId          String       @map("dock_id") @db.Uuid
+  dockId          String?      @map("dock_id") @db.Uuid // null = computadora de oficina (superadmin)
   name            String       @db.VarChar(60)
   deviceTokenHash String       @unique @map("device_token_hash")
   status          DeviceStatus @default(PENDING)
@@ -287,7 +287,7 @@ model AuthorizedDevice {
   approvedAt      DateTime?    @map("approved_at") @db.Timestamptz(6)
   lastSeenAt      DateTime?    @map("last_seen_at") @db.Timestamptz(6)
 
-  dock        Dock  @relation(fields: [dockId], references: [id], onDelete: Restrict)
+  dock        Dock? @relation(fields: [dockId], references: [id], onDelete: Restrict)
   requestedBy User  @relation("DeviceRequester", fields: [requestedById], references: [id], onDelete: Restrict)
   approvedBy  User? @relation("DeviceApprover", fields: [approvedById], references: [id], onDelete: SetNull)
 

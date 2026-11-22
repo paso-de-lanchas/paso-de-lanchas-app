@@ -143,6 +143,12 @@ Cuentas para probar (después de `npm run db:seed`): las de la cabecera de `pris
 `http://localhost:3000/login`. Las carpetas `/pasajero`, `/chofer`, `/admin` y `/superadmin` ya tienen `loading.tsx`, así
 que las páginas nuevas dentro de ellas pueden llamar a `requireRole` directamente.
 
+**Administrador y superadministrador (issue #9):** solo entran desde una **computadora autorizada**. La primera vez que
+entras con `admin.coa`, `admin.val` o `superadmin` desde tu navegador, el login dice que la computadora no está
+autorizada y crea la solicitud. Mientras el superadministrador no tenga su pantalla (sprint 3), apruébala en tu base local
+con `npm run dev:aprobar-computadoras` y vuelve a entrar. Además, el personal se bloquea 15 minutos tras 5 contraseñas
+incorrectas seguidas, y la sesión de admin/superadmin se cierra tras 30 minutos sin actividad.
+
 ## 5. Cómo empieza cada quien (su primer día)
 
 1. Prepara tu computadora con [ENTORNO_DESARROLLO.md](ENTORNO_DESARROLLO.md) y comprueba que
