@@ -145,6 +145,7 @@ npm run format             Prettier
 | 2026-11-17 | Omar (con Claude) | Base del proyecto: Next.js 16, Prisma 7 con las 32 tablas y reglas de integridad, seed, Vitest/Playwright, CI, pantallas temporales por rol, reparto de módulos y ADR 0002 (propuesta) |
 | 2026-11-18 | Omar (con Claude) | PR #3 fusionado; sprint 2 planeado en GitHub: milestone (vence sáb 21 nov, 9 p. m.) y 17 issues con pasos de programación, asignados a los 5; guía de contribución actualizada |
 | 2026-11-22 | Omar (con Claude) | Documentos Word actualizados: 01 Planeación v1.3 (Node 24, Next.js 16, Prisma 7, PostgreSQL 17, Neon sin Supabase, Docker, login en ADR 0002, proxy) y 02 Flujo de GitHub v1.1 (repo público, revisión sin aprobación obligatoria, CI real) |
+| 2026-11-22 | Omar (con Claude) | Revisión de los PRs #22–#25; issue #27: índices únicos parciales (una asignación activa por chofer y embarcación, una solicitud de descuento pendiente por pasajero) |
 | 2026-11-22 | Omar (con Claude) | ADR 0002 aceptada: login propio (Argon2 + sesiones en BD, `requireRole` en servidor); se descartan Auth.js y Better Auth (#5) |
 
 ## Registro de errores y soluciones
