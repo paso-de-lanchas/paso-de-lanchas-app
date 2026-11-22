@@ -57,8 +57,9 @@ repositorio:
 - **Sprint 2 en curso:** milestone *Sprint 2 · Cimientos* con 17 issues (#4–#20), cada uno con historia, criterios de
   aceptación, RF y una sección **"Cómo programarlo, paso a paso"**; todos asignados. Tabla de issues por persona en
   [docs/MODULOS_Y_RESPONSABLES.md](docs/MODULOS_Y_RESPONSABLES.md).
-- **Siguiente:** que cada quien cierre #4 (preparar su computadora), Omar decide #5 (librería de login, bloquea el
-  login), visita de campo (tarifas, capacidades, máximo de boletos por venta), requisitos no funcionales.
+- **Siguiente:** que cada quien cierre #4 (preparar su computadora), Omar programa #7 (login y `requireRole`, lo
+  necesitan todos; el #5 ya se decidió: login propio), visita de campo (tarifas, capacidades, máximo de boletos
+  por venta), requisitos no funcionales.
 - **Aún no hay módulos programados:** las pantallas por rol son temporales.
 
 ## Stack (versiones instaladas)
@@ -69,7 +70,8 @@ repositorio:
 - **PostgreSQL 17 + Prisma 7.10** (cliente generado en `src/generated/prisma`, adaptador `@prisma/adapter-pg`,
   configuración en `prisma.config.ts`). Prisma 7.10.1 está **fijado**: npm marca como "latest" la 8.0 RC, no actualizar.
 - **Zod 4**, **@node-rs/argon2**, **otplib** (QR TOTP). Pendientes de instalar por su módulo: html5-qrcode (Cova),
-  MapLibre GL (Diego), Serwist (Diego), SDK de Mercado Pago (Cova), shadcn/ui (Diego/José), librería de login (ADR 0002).
+  MapLibre GL (Diego), Serwist (Diego), SDK de Mercado Pago (Cova), shadcn/ui (Diego/José).
+  **Login propio sin librería** (ADR 0002 aceptada): Argon2 + sesiones en la tabla `sessions`.
 - Tiempo real por consultas periódicas (5–10 s). Hosting: **Vercel** + **Neon**. CI: **GitHub Actions**
   (`.github/workflows/ci.yml`).
 - Pruebas: **Vitest 5** + **Playwright**. Calidad: ESLint 9 + Prettier (el Markdown no se formatea), Sentry.
@@ -143,6 +145,7 @@ npm run format             Prettier
 | 2026-11-17 | Omar (con Claude) | Base del proyecto: Next.js 16, Prisma 7 con las 32 tablas y reglas de integridad, seed, Vitest/Playwright, CI, pantallas temporales por rol, reparto de módulos y ADR 0002 (propuesta) |
 | 2026-11-18 | Omar (con Claude) | PR #3 fusionado; sprint 2 planeado en GitHub: milestone (vence sáb 21 nov, 9 p. m.) y 17 issues con pasos de programación, asignados a los 5; guía de contribución actualizada |
 | 2026-11-22 | Omar (con Claude) | Documentos Word actualizados: 01 Planeación v1.3 (Node 24, Next.js 16, Prisma 7, PostgreSQL 17, Neon sin Supabase, Docker, login en ADR 0002, proxy) y 02 Flujo de GitHub v1.1 (repo público, revisión sin aprobación obligatoria, CI real) |
+| 2026-11-22 | Omar (con Claude) | ADR 0002 aceptada: login propio (Argon2 + sesiones en BD, `requireRole` en servidor); se descartan Auth.js y Better Auth (#5) |
 
 ## Registro de errores y soluciones
 
