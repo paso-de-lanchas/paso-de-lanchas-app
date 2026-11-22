@@ -120,6 +120,29 @@ Nombres de carpeta por módulo (en inglés, como el código):
 Ya hay dos ejemplos para copiar el estilo: `src/domain/shared/money.ts` (dinero sin errores de redondeo) y
 `src/domain/departure/seat-allocation.ts` (regla de cero sobreventa), cada uno con sus pruebas.
 
+### Cómo proteger tus pantallas, acciones y APIs (login listo, issue #7)
+
+Nunca recibas el `userId` de un formulario o de la URL: el usuario sale **siempre** de la sesión, en el servidor.
+
+```ts
+import { requireRole, assertRole, requireApiRole } from "@/lib/auth/require-role";
+
+// Página (src/app/admin/tarifas/page.tsx): sin sesión → login; otro rol → su propia sección
+const user = await requireRole("ADMIN");
+
+// Server Action ("use server"): lanza 401/403 si no tiene permiso
+const user = await assertRole("PASSENGER");
+
+// Ruta API (route.ts): responde 401/403 por ti
+const auth = await requireApiRole("ADMIN", "SUPERADMIN");
+if (!auth.ok) return auth.response;
+const user = auth.user;
+```
+
+Cuentas para probar (después de `npm run db:seed`): las de la cabecera de `prisma/seed.ts`, entrando por
+`http://localhost:3000/login`. Las carpetas `/pasajero`, `/chofer`, `/admin` y `/superadmin` ya tienen `loading.tsx`, así
+que las páginas nuevas dentro de ellas pueden llamar a `requireRole` directamente.
+
 ## 5. Cómo empieza cada quien (su primer día)
 
 1. Prepara tu computadora con [ENTORNO_DESARROLLO.md](ENTORNO_DESARROLLO.md) y comprueba que

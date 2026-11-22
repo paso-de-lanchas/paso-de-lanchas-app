@@ -18,7 +18,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/domain/**", "src/application/**"],
-      exclude: ["**/*.test.ts", "src/application/shared/ports.ts"],
+      exclude: ["**/*.test.ts", "**/test-doubles.ts", "**/ports.ts"],
       // Definición de Hecho: ≥ 80 % en dominio y casos de uso.
       thresholds: { lines: 80, functions: 80, branches: 80, statements: 80 },
     },

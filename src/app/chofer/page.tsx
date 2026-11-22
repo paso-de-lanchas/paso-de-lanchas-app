@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 
 import { ModulePlaceholder } from "@/components/module-placeholder";
+import { requireRole } from "@/lib/auth/require-role";
 
 export const metadata: Metadata = { title: "Chofer" };
 
-export default function DriverPage() {
+export default async function DriverPage() {
+  const user = await requireRole("DRIVER");
   return (
     <ModulePlaceholder
+      userName={user.fullName}
       role="Chofer"
       modules={[
         {

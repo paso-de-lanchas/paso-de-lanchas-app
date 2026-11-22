@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 
 import { ModulePlaceholder } from "@/components/module-placeholder";
+import { requireRole } from "@/lib/auth/require-role";
 
 export const metadata: Metadata = { title: "Pasajero" };
 
-export default function PassengerPage() {
+export default async function PassengerPage() {
+  const user = await requireRole("PASSENGER");
   return (
     <ModulePlaceholder
+      userName={user.fullName}
       role="Pasajero"
       modules={[
         { name: "Cuenta y perfil", owner: "José", requirements: "RF-014 a RF-020" },

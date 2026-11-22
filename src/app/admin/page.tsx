@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 
 import { ModulePlaceholder } from "@/components/module-placeholder";
+import { requireRole } from "@/lib/auth/require-role";
 
 export const metadata: Metadata = { title: "Administrador" };
 
-export default function AdminPage() {
+export default async function AdminPage() {
+  const user = await requireRole("ADMIN");
   return (
     <ModulePlaceholder
+      userName={user.fullName}
       role="Administrador (taquilla)"
       modules={[
         { name: "Abordaje y taquilla", owner: "Cova", requirements: "RF-043 a RF-054" },
