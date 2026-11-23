@@ -66,6 +66,8 @@ repositorio:
   local). **Contraseñas (#8):** `/recuperar` (enlace de 30 min, un solo uso, cierra todas las sesiones) y
   `/cuenta/cambiar-contrasena` (pide la actual; la contraseña temporal del personal obliga a cambiarla antes de seguir).
   Las demás pantallas por rol siguen temporales.
+- **Permisos en GitHub (2026-11-23, D26):** equipo `desarrollo` con permiso de escritura (los 5 suben sus ramas al
+  repo); en `develop` todo entra por PR con la CI en verde y **solo Omar aprueba y fusiona** (`.github/CODEOWNERS`).
 
 ## Stack (versiones instaladas)
 
@@ -110,8 +112,8 @@ docs/                         contexto, entorno, módulos, ADR y script SQL de c
 4. **Git:** `main` = producción, `develop` = integración (rama por defecto). Ramas de trabajo desde `develop`:
    `feature|fix|docs|chore|test/<issue>-descripcion`; urgencias en producción: `hotfix/<issue>-descripcion` desde `main`.
    Conventional Commits (tipo en inglés, descripción en español). Todo entra por pull request: hacia `develop` con
-   revisión de alguien de otra área (por ahora la aprobación no es obligatoria en GitHub, ver
-   docs/MODULOS_Y_RESPONSABLES.md) y **squash and merge**; de `develop` a `main` al cierre de sprint con 2 aprobaciones y
+   revisión de alguien de otra área (comentarios) y **aprobación obligatoria de Omar** (`.github/CODEOWNERS`), CI en
+   verde y **squash and merge**, que solo hace Omar (ver docs/MODULOS_Y_RESPONSABLES.md); de `develop` a `main` al cierre de sprint con 2 aprobaciones y
    **merge commit**, etiqueta `v0.N.0`. Guía: CONTRIBUTING.md del repo `.github`.
 5. **Definición de Hecho:** código revisado, pruebas pasando (≥ 80 % en dominio/casos de uso), lint limpio,
    documentación + este archivo + `docs/CONTEXTO_PROYECTO.md` actualizados.
@@ -158,8 +160,8 @@ npm run format             Prettier
 | 2026-11-22 | Omar (con Claude) | Seguridad del personal (#9): bloqueo por intentos fallidos, computadoras autorizadas con cookie de dispositivo, cierre por inactividad, `dock_id` opcional en `authorized_devices`, script `dev:aprobar-computadoras` |
 | 2026-11-22 | Omar (con Claude) | Registro de pasajero (#6): cuenta pendiente + monedero en $0 + enlace en una transacción, verificación de un solo uso, respuesta igual si el correo existe, correo por SMTP (nodemailer, Mailpit en local) |
 | 2026-11-23 | Omar (con Claude) | Recuperar y cambiar contraseña (#8): enlace de 30 min de un solo uso (máx. 3 cada 30 min), cierre de sesiones, contraseña temporal obligatoria de cambiar (`requireRole`/`assertRole`), aviso por correo del cambio, `InputError` compartido, cuentas de prueba e2e con `globalSetup` |
-
 | 2026-11-22 | José | Issue #16 (revisión PR #23): eliminar `userId` oculto del formulario y obtener sesión en servidor con `requireRole`/`assertRole` |
+| 2026-11-23 | Omar (con Claude) | Permisos en GitHub (D26): equipo `desarrollo` con escritura, `.github/CODEOWNERS`, reglas de `develop` (PR obligatorio, CI en verde, aprobación de Omar); guía de contribución actualizada |
 
 ## Registro de errores y soluciones
 
@@ -171,6 +173,7 @@ npm run format             Prettier
 | 2026-11-23 | Playwright: `getByLabel` encuentra dos campos iguales después de navegar | Next.js 16 deja oculta la pantalla anterior al navegar con un enlace | Usar `getByRole("textbox", { name })`, que solo encuentra lo visible |
 | 2026-11-23 | Playwright: `Cannot use 'import.meta' outside a module` al importar Prisma en una prueba | Playwright carga las pruebas como CommonJS y el cliente de Prisma es un módulo ES | Preparar datos con un script `tsx` (`scripts/dev-prepare-e2e-accounts.ts`) desde `globalSetup` |
 | 2026-11-18 | `npm run check` falla en `database-rules.test.ts` | Docker Desktop estaba cerrado (la prueba de integración necesita la base de pruebas) | Abrir Docker Desktop, `docker compose up -d` y `npm run db:test:prepare` (la base de pruebas se vacía al reiniciar Docker) |
+| 2026-11-23 | Un integrante no podía hacer `git push` de su rama ni abrir su PR | Tenía solo permiso de lectura en el repo de la organización (los que sí pudieron trabajaban desde un *fork*) | Equipo `desarrollo` con permiso de escritura (D26) |
 
 ## Datos pendientes de confirmar en campo
 

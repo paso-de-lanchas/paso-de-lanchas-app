@@ -27,8 +27,10 @@
 
 ## 2. Quién revisa a quién
 
-Regla del equipo: el PR lo revisa alguien **de otra área**. Mientras el equipo arranca, la aprobación no es obligatoria
-en `develop`, pero **cada PR debe tener al menos un comentario de revisión**.
+Regla del equipo: el PR lo revisa alguien **de otra área** y **cada PR debe tener al menos un comentario de revisión**.
+Para fusionar a `develop`, GitHub exige además la **aprobación de Omar** (responsable del código en `.github/CODEOWNERS`)
+y la CI en verde; **solo Omar fusiona** (decisión D26). La aprobación de un compañero no basta, pero su revisión sí
+cuenta: Omar la lee antes de aprobar.
 
 | Autor del PR | Revisa | Además, si toca la base | Además, si toca login/permisos/pagos |
 |---|---|---|---|
