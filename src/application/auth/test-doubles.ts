@@ -13,6 +13,7 @@ import type {
   Mailer,
   PassengerRegistrationRepository,
   PasswordHasher,
+  PasswordRepository,
   SessionRepository,
   TokenService,
   UserCredentials,
@@ -33,6 +34,8 @@ export interface MemoryAccount {
   status: UserCredentials["status"];
   emailVerifiedAt: Date | null;
   walletBalance: string | null;
+  mustChangePassword?: boolean;
+  lockedUntil?: Date | null;
 }
 
 export interface MemoryEmailToken {
@@ -44,10 +47,20 @@ export interface MemoryEmailToken {
   usedAt: Date | null;
 }
 
-/** Cuentas, monederos y tokens por correo en memoria (registro y verificación). */
-export function memoryAccounts(accounts: MemoryAccount[] = [], tokens: MemoryEmailToken[] = []) {
+/**
+ * Cuentas, monederos, tokens por correo y sesiones en memoria (registro, verificación y
+ * contraseñas). `sessions` solo guarda de quién es cada sesión, para revisar cuáles se cierran.
+ */
+export function memoryAccounts(
+  accounts: MemoryAccount[] = [],
+  tokens: MemoryEmailToken[] = [],
+  sessions: { userId: string; tokenHash: string }[] = [],
+) {
   const addToken = (token: Omit<MemoryEmailToken, "id" | "usedAt">) =>
     void tokens.push({ ...token, id: `t-${tokens.length + 1}`, usedAt: null });
+  const byId = (id: string) => accounts.find((a) => a.id === id);
+  const keepSessions = (keep: (s: { userId: string; tokenHash: string }) => boolean) =>
+    sessions.splice(0, sessions.length, ...sessions.filter(keep));
 
   const registration: PassengerRegistrationRepository = {
     findAccountByEmail: async (email) => {
@@ -99,7 +112,39 @@ export function memoryAccounts(accounts: MemoryAccount[] = [], tokens: MemoryEma
     },
   };
 
-  return { accounts, tokens, registration, emailTokens };
+  const passwords: PasswordRepository = {
+    findAccountByEmail: registration.findAccountByEmail,
+    countResetTokensExpiringAfter: async (userId, at) =>
+      tokens.filter(
+        (t) =>
+          t.userId === userId &&
+          t.purpose === "PASSWORD_RESET" &&
+          t.expiresAt.getTime() > at.getTime(),
+      ).length,
+    addResetToken: async (token) => addToken({ ...token, purpose: "PASSWORD_RESET" }),
+    findById: async (userId) => {
+      const account = byId(userId);
+      return account
+        ? { email: account.email, fullName: account.fullName, passwordHash: account.passwordHash }
+        : null;
+    },
+    resetWithToken: async (tokenId, userId, passwordHash, at) => {
+      const token = tokens.find((t) => t.id === tokenId);
+      if (!token || token.usedAt) return false;
+      for (const t of tokens) {
+        if (t.userId === userId && t.purpose === "PASSWORD_RESET" && !t.usedAt) t.usedAt = at;
+      }
+      Object.assign(byId(userId)!, { passwordHash, lockedUntil: null, mustChangePassword: false });
+      keepSessions((s) => s.userId !== userId);
+      return true;
+    },
+    changePassword: async (userId, passwordHash, keepSessionTokenHash) => {
+      Object.assign(byId(userId)!, { passwordHash, mustChangePassword: false });
+      keepSessions((s) => s.userId !== userId || s.tokenHash === keepSessionTokenHash);
+    },
+  };
+
+  return { accounts, tokens, sessions, registration, emailTokens, passwords };
 }
 
 export const fakeHasher: PasswordHasher = {

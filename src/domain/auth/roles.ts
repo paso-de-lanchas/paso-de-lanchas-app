@@ -55,3 +55,6 @@ export function redirectAfterLogin(role: Role, requested?: string | null): strin
   if (requested.includes("\\") || /[\r\n]/.test(requested)) return home;
   return sectionOf(requested) === home ? requested : home;
 }
+
+/** Pantalla para cambiar la contraseña; con una contraseña temporal es la única permitida (RF-013). */
+export const CHANGE_PASSWORD_PATH = "/cuenta/cambiar-contrasena";

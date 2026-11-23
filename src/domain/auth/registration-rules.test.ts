@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { normalizeEmail } from "./email";
-import { emailTokenExpiresAt, emailTokenState } from "./email-token";
+import {
+  emailTokenExpiresAt,
+  emailTokenState,
+  minutesAfter,
+  PASSWORD_RESET_MINUTES,
+} from "./email-token";
 import { passwordProblem } from "./password-policy";
 import { normalizeMexicanPhone } from "./phone";
 
@@ -44,6 +49,12 @@ describe("enlaces por correo", () => {
 
   it("vence a las horas indicadas", () => {
     expect(emailTokenExpiresAt(now, 24).toISOString()).toBe("2026-11-23T12:00:00.000Z");
+  });
+
+  it("el de recuperar contraseña vence a los 30 minutos", () => {
+    expect(minutesAfter(now, PASSWORD_RESET_MINUTES).toISOString()).toBe(
+      "2026-11-22T12:30:00.000Z",
+    );
   });
 
   it("es válido solo si no se usó y no ha vencido", () => {

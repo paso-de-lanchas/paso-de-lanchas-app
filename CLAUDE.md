@@ -57,14 +57,15 @@ repositorio:
 - **Sprint 2 en curso:** milestone *Sprint 2 · Cimientos* con 17 issues (#4–#20), cada uno con historia, criterios de
   aceptación, RF y una sección **"Cómo programarlo, paso a paso"**; todos asignados. Tabla de issues por persona en
   [docs/MODULOS_Y_RESPONSABLES.md](docs/MODULOS_Y_RESPONSABLES.md).
-- **Siguiente:** que cada quien cierre #4 (preparar su computadora) y use `requireRole` en sus módulos; Omar sigue
-  con #6 (registro), #8 (recuperar contraseña) y #9 (seguridad del personal); visita de campo (tarifas, capacidades,
-  máximo de boletos por venta), requisitos no funcionales.
+- **Siguiente:** que cada quien cierre #4 (preparar su computadora) y use `requireRole` en sus módulos; revisar los PRs
+  del equipo; visita de campo (tarifas, capacidades, máximo de boletos por venta), requisitos no funcionales.
 - **Login listo (issue #7, 2026-11-22):** inicio y cierre de sesión por rol, `requireRole` / `assertRole` /
   `requireApiRole` en `src/lib/auth/require-role.ts` y `src/proxy.ts`. Uso en docs/MODULOS_Y_RESPONSABLES.md.
   **Seguridad del personal (#9):** bloqueo por intentos, computadoras autorizadas (admin/superadmin) e inactividad.
   **Registro de pasajero (#6):** `/registro` y `/verificar-correo` con enlace de un solo uso por correo (Mailpit en
-  local). Las demás pantallas por rol siguen temporales.
+  local). **Contraseñas (#8):** `/recuperar` (enlace de 30 min, un solo uso, cierra todas las sesiones) y
+  `/cuenta/cambiar-contrasena` (pide la actual; la contraseña temporal del personal obliga a cambiarla antes de seguir).
+  Las demás pantallas por rol siguen temporales.
 
 ## Stack (versiones instaladas)
 
@@ -155,6 +156,7 @@ npm run format             Prettier
 | 2026-11-22 | Omar (con Claude) | Login por rol (#7): Argon2, sesiones en BD con hash del token y cookie HttpOnly, `requireRole`/`assertRole`/`requireApiRole`, `proxy.ts`, pantalla de login y cierre de sesión, bitácora; 40 pruebas unitarias y 10 de Playwright |
 | 2026-11-22 | Omar (con Claude) | Seguridad del personal (#9): bloqueo por intentos fallidos, computadoras autorizadas con cookie de dispositivo, cierre por inactividad, `dock_id` opcional en `authorized_devices`, script `dev:aprobar-computadoras` |
 | 2026-11-22 | Omar (con Claude) | Registro de pasajero (#6): cuenta pendiente + monedero en $0 + enlace en una transacción, verificación de un solo uso, respuesta igual si el correo existe, correo por SMTP (nodemailer, Mailpit en local) |
+| 2026-11-23 | Omar (con Claude) | Recuperar y cambiar contraseña (#8): enlace de 30 min de un solo uso (máx. 3 cada 30 min), cierre de sesiones, contraseña temporal obligatoria de cambiar (`requireRole`/`assertRole`), aviso por correo del cambio, `InputError` compartido, cuentas de prueba e2e con `globalSetup` |
 
 ## Registro de errores y soluciones
 
@@ -163,6 +165,8 @@ npm run format             Prettier
 | 2026-11-17 | `P1000: Authentication failed` al migrar | Un PostgreSQL instalado en Windows ocupaba el puerto 5432 y respondía en lugar del de Docker | El proyecto usa los puertos 5434 (desarrollo) y 5435 (pruebas) |
 | 2026-11-17 | `npm i prisma` instaló la 8.0 RC | npm tiene la etiqueta "latest" en una versión candidata | Prisma y @prisma/client fijados en 7.10.1 |
 | 2026-11-22 | Playwright: `Executable doesn't exist ... chrome-headless-shell` | Faltaba descargar el navegador de pruebas en esa computadora | `npx playwright install chromium` (una vez por computadora) |
+| 2026-11-23 | Playwright: `getByLabel` encuentra dos campos iguales después de navegar | Next.js 16 deja oculta la pantalla anterior al navegar con un enlace | Usar `getByRole("textbox", { name })`, que solo encuentra lo visible |
+| 2026-11-23 | Playwright: `Cannot use 'import.meta' outside a module` al importar Prisma en una prueba | Playwright carga las pruebas como CommonJS y el cliente de Prisma es un módulo ES | Preparar datos con un script `tsx` (`scripts/dev-prepare-e2e-accounts.ts`) desde `globalSetup` |
 | 2026-11-18 | `npm run check` falla en `database-rules.test.ts` | Docker Desktop estaba cerrado (la prueba de integración necesita la base de pruebas) | Abrir Docker Desktop, `docker compose up -d` y `npm run db:test:prepare` (la base de pruebas se vacía al reiniciar Docker) |
 
 ## Datos pendientes de confirmar en campo

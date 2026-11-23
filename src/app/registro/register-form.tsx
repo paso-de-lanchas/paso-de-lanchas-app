@@ -3,18 +3,9 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
+import { FieldError, inputClass } from "@/components/form-fields";
+
 import { registerAction, type RegisterState } from "./actions";
-
-const inputClass = "border-line h-12 rounded-xl border bg-white px-3 font-normal";
-
-function FieldError({ message, id }: { message?: string; id: string }) {
-  if (!message) return null;
-  return (
-    <span id={id} className="text-sm font-normal text-red-800">
-      {message}
-    </span>
-  );
-}
 
 export function RegisterForm() {
   const [state, formAction, pending] = useActionState<RegisterState, FormData>(registerAction, {});

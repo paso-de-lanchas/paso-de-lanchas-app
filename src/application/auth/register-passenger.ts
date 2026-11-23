@@ -1,13 +1,12 @@
 import { z } from "zod";
 
-import { normalizeEmail } from "@/domain/auth/email";
 import { EMAIL_VERIFICATION_HOURS, emailTokenExpiresAt } from "@/domain/auth/email-token";
-import { PASSWORD_MAX_LENGTH, passwordProblem } from "@/domain/auth/password-policy";
 import { normalizeMexicanPhone } from "@/domain/auth/phone";
-import { DomainError } from "@/domain/shared/domain-error";
 
+import { InputError, parseInput } from "../shared/input-error";
 import type { AuditLogger, Clock } from "../shared/ports";
 import { alreadyRegisteredEmail, verificationEmail } from "./emails";
+import { emailSchema, newPasswordSchema } from "./password-schema";
 import type {
   Mailer,
   PassengerRegistrationRepository,
@@ -21,11 +20,7 @@ export const registerInputSchema = z.object({
     .trim()
     .min(3, "Escribe tu nombre completo.")
     .max(120, "El nombre es demasiado largo."),
-  email: z
-    .string()
-    .max(120, "El correo es demasiado largo.")
-    .transform(normalizeEmail)
-    .pipe(z.email("Escribe un correo válido.")),
+  email: emailSchema,
   phone: z.string().transform((value, ctx) => {
     const phone = normalizeMexicanPhone(value);
     if (!phone) {
@@ -34,13 +29,7 @@ export const registerInputSchema = z.object({
     }
     return phone;
   }),
-  password: z
-    .string()
-    .max(PASSWORD_MAX_LENGTH + 1)
-    .superRefine((value, ctx) => {
-      const problem = passwordProblem(value);
-      if (problem) ctx.addIssue({ code: "custom", message: problem });
-    }),
+  password: newPasswordSchema,
   acceptPrivacy: z.literal(true, "Debes aceptar el aviso de privacidad para crear tu cuenta."),
 });
 
@@ -54,13 +43,9 @@ export interface RegisterInput {
 }
 export type RegisterField = keyof RegisterInput;
 
-/** Datos inválidos, con el mensaje de cada campo para mostrarlo junto a él. */
-export class RegistrationInputError extends DomainError {
-  constructor(readonly fieldErrors: Partial<Record<RegisterField, string>>) {
-    super("INVALID_INPUT", "Revisa los datos marcados.");
-    this.name = "RegistrationInputError";
-  }
-}
+/** Datos inválidos del registro, con el mensaje de cada campo (es un InputError). */
+export const RegistrationInputError = InputError;
+export type RegistrationInputError = InputError<RegisterField>;
 
 export interface RegisterDeps {
   accounts: PassengerRegistrationRepository;
@@ -79,16 +64,10 @@ export interface RegisterDeps {
  */
 export function createRegisterPassenger(deps: RegisterDeps) {
   return async function registerPassenger(input: RegisterInput): Promise<{ email: string }> {
-    const parsed = registerInputSchema.safeParse(input);
-    if (!parsed.success) {
-      const fieldErrors: Partial<Record<RegisterField, string>> = {};
-      for (const issue of parsed.error.issues) {
-        const field = issue.path[0] as RegisterField;
-        fieldErrors[field] ??= issue.message;
-      }
-      throw new RegistrationInputError(fieldErrors);
-    }
-    const { fullName, email, phone, password } = parsed.data;
+    const { fullName, email, phone, password } = parseInput<
+      RegisterField,
+      typeof registerInputSchema
+    >(registerInputSchema, input);
     const now = deps.clock.now();
 
     // Se calcula siempre, exista o no el correo, para que la respuesta tarde parecido.

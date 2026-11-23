@@ -187,3 +187,9 @@ Este proyecto es **ingeniería de software**: todo código debe:
   privacidad obligatorio (`privacy_accepted_at`). La cuenta nace `PENDING_VERIFICATION` con monedero en $0 y se activa
   con un enlace de 24 h que se confirma con un botón (no al abrirlo, para que los antivirus de correo no lo gasten).
   Si el correo ya existe, la pantalla responde igual y al dueño le llega un aviso. Correo por SMTP con nodemailer.
+- Recuperar y cambiar contraseña (#8, 2026-11-23): "¿Olvidaste tu contraseña?" manda un enlace de 30 minutos y un
+  solo uso (solo a cuentas activas, máximo 3 cada 30 minutos, misma respuesta exista o no el correo). Al usarlo se
+  invalidan los demás enlaces, se quita el bloqueo por intentos y se cierran **todas** las sesiones. Cambiar la
+  contraseña desde la cuenta pide la actual y cierra las demás sesiones. Con contraseña temporal
+  (`must_change_password`, la que asigna el superadmin) el login lleva a `/cuenta/cambiar-contrasena` y `requireRole` /
+  `assertRole` no dejan hacer nada más hasta cambiarla. Cada cambio avisa por correo al dueño.

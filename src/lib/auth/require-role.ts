@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import type { CurrentUser } from "@/application/auth/ports";
-import { authorize, homePathFor, type Role } from "@/domain/auth/roles";
+import { authorize, CHANGE_PASSWORD_PATH, homePathFor, type Role } from "@/domain/auth/roles";
 import { DomainError } from "@/domain/shared/domain-error";
 
 import { getCurrentUser } from "./auth";
@@ -26,10 +26,11 @@ export class AccessDeniedError extends DomainError {
   }
 }
 
-/** Para páginas: sin sesión manda al login. */
+/** Para páginas: sin sesión manda al login; con contraseña temporal, a cambiarla (RF-013). */
 export async function requireUser(): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (user.mustChangePassword) redirect(CHANGE_PASSWORD_PATH);
   return user;
 }
 
@@ -46,6 +47,8 @@ export async function assertRole(...roles: Role[]): Promise<CurrentUser> {
   const result = authorize(user, roles);
   if (result === "UNAUTHENTICATED") throw new AccessDeniedError(401);
   if (result === "FORBIDDEN") throw new AccessDeniedError(403);
+  // Con contraseña temporal no puede hacer nada más hasta cambiarla (RF-013).
+  if (user!.mustChangePassword) throw new AccessDeniedError(403);
   return user!;
 }
 

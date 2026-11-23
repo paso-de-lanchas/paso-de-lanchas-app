@@ -7,8 +7,11 @@ import {
   type LoginInput,
   type LoginResult,
 } from "@/application/auth/login";
+import { createChangePassword, type ChangePasswordInput } from "@/application/auth/change-password";
 import type { CurrentUser } from "@/application/auth/ports";
 import { createRegisterPassenger } from "@/application/auth/register-passenger";
+import { createRequestPasswordReset } from "@/application/auth/request-password-reset";
+import { createResetPassword } from "@/application/auth/reset-password";
 import { createGetCurrentUser, createLogout } from "@/application/auth/session";
 import { createVerifyEmail } from "@/application/auth/verify-email";
 import { systemClock } from "@/application/shared/ports";
@@ -21,12 +24,14 @@ import {
   prismaUserCredentialsRepository,
 } from "@/infrastructure/auth/prisma-auth-repositories";
 import { prismaAuthSettings } from "@/infrastructure/auth/prisma-auth-settings";
+import { prismaPasswordRepository } from "@/infrastructure/auth/prisma-password-repository";
 import {
   prismaEmailTokenRepository,
   prismaPassengerRegistrationRepository,
 } from "@/infrastructure/auth/prisma-registration-repositories";
 import { smtpMailer } from "@/infrastructure/auth/smtp-mailer";
 import { prisma } from "@/infrastructure/db/prisma";
+import { DomainError } from "@/domain/shared/domain-error";
 import { env } from "@/lib/env";
 
 import {
@@ -71,6 +76,9 @@ const mailer = smtpMailer({
   from: env.MAIL_FROM,
 });
 
+const passwords = prismaPasswordRepository(prisma);
+const emailTokens = prismaEmailTokenRepository(prisma);
+
 /** Registro de pasajero (RF-001). Lanza RegistrationInputError con el error de cada campo. */
 export const registerPassenger = createRegisterPassenger({
   accounts: prismaPassengerRegistrationRepository(prisma),
@@ -84,11 +92,54 @@ export const registerPassenger = createRegisterPassenger({
 
 /** Confirmar el correo con el enlace (RF-002). */
 export const verifyEmail = createVerifyEmail({
-  emailTokens: prismaEmailTokenRepository(prisma),
+  emailTokens,
   tokens: cryptoTokenService,
   audit,
   clock: systemClock,
 });
+
+/** Pedir enlace para recuperar la contraseña (RF-005). Responde igual exista o no el correo. */
+export const requestPasswordReset = createRequestPasswordReset({
+  passwords,
+  tokens: cryptoTokenService,
+  mailer,
+  audit,
+  clock: systemClock,
+  appUrl: env.APP_URL,
+});
+
+/** Elegir contraseña nueva con el enlace del correo (RF-005); cierra todas las sesiones. */
+export const resetPassword = createResetPassword({
+  passwords,
+  emailTokens,
+  hasher: argon2PasswordHasher,
+  tokens: cryptoTokenService,
+  mailer,
+  audit,
+  clock: systemClock,
+  appUrl: env.APP_URL,
+});
+
+const changePasswordUseCase = createChangePassword({
+  passwords,
+  hasher: argon2PasswordHasher,
+  tokens: cryptoTokenService,
+  mailer,
+  audit,
+  appUrl: env.APP_URL,
+});
+
+/**
+ * Cambiar la contraseña del usuario con sesión (RF-006, RF-013). Conserva esta sesión y
+ * cierra las demás. Devuelve al usuario para mandarlo a su sección.
+ */
+export async function changeOwnPassword(input: ChangePasswordInput): Promise<CurrentUser> {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  const user = await getCurrentUser();
+  if (!token || !user) throw new DomainError("UNAUTHENTICATED", "Inicia sesión para continuar.");
+  await changePasswordUseCase({ userId: user.id, token }, input);
+  return { ...user, mustChangePassword: false };
+}
 
 /** Inicia sesión y guarda la cookie. Solo desde una Server Action o una ruta API. */
 export async function signIn(input: LoginInput): Promise<LoginResult> {

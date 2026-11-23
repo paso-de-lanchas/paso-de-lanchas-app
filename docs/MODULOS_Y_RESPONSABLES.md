@@ -149,6 +149,11 @@ autorizada y crea la solicitud. Mientras el superadministrador no tenga su panta
 con `npm run dev:aprobar-computadoras` y vuelve a entrar. Además, el personal se bloquea 15 minutos tras 5 contraseñas
 incorrectas seguidas, y la sesión de admin/superadmin se cierra tras 30 minutos sin actividad.
 
+**Contraseña temporal (issue #8):** si una cuenta tiene `must_change_password = true` (la que el superadmin crea o
+restablece), `requireRole` la manda a `/cuenta/cambiar-contrasena` y `assertRole` / `requireApiRole` responden 403
+hasta que la cambie. No necesitas hacer nada en tus módulos: ya lo hacen esas funciones. Las pruebas de navegador de
+contraseñas usan cuentas `e2e.*@pasolanchas.test` que se preparan solas al correr `npm run test:e2e`.
+
 ## 5. Cómo empieza cada quien (su primer día)
 
 1. Prepara tu computadora con [ENTORNO_DESARROLLO.md](ENTORNO_DESARROLLO.md) y comprueba que

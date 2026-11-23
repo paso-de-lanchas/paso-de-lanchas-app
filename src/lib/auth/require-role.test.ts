@@ -13,13 +13,13 @@ vi.mock("next/navigation", () => ({
 
 const { assertRole, requireApiRole, requireRole } = await import("./require-role");
 
-function signedInAs(role: CurrentUser["role"]) {
+function signedInAs(role: CurrentUser["role"], mustChangePassword = false) {
   session.user = {
     id: "u-1",
     email: "x@pasolanchas.test",
     fullName: "X",
     role,
-    mustChangePassword: false,
+    mustChangePassword,
   };
 }
 
@@ -39,6 +39,11 @@ describe("requireRole (páginas)", () => {
     signedInAs("ADMIN");
     await expect(requireRole("ADMIN", "SUPERADMIN")).resolves.toMatchObject({ role: "ADMIN" });
   });
+
+  it("con contraseña temporal manda a cambiarla (RF-013)", async () => {
+    signedInAs("DRIVER", true);
+    await expect(requireRole("DRIVER")).rejects.toThrow("REDIRECT /cuenta/cambiar-contrasena");
+  });
 });
 
 describe("assertRole (Server Actions)", () => {
@@ -51,6 +56,11 @@ describe("assertRole (Server Actions)", () => {
     });
     signedInAs("DRIVER");
     await expect(assertRole("ADMIN")).rejects.toMatchObject({ status: 403, code: "FORBIDDEN" });
+  });
+
+  it("con contraseña temporal lanza 403 aunque tenga el rol", async () => {
+    signedInAs("ADMIN", true);
+    await expect(assertRole("ADMIN")).rejects.toMatchObject({ status: 403 });
   });
 });
 

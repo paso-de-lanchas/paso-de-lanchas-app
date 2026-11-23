@@ -36,6 +36,9 @@ export function LoginForm() {
           className="border-line h-12 rounded-xl border bg-white px-3 font-normal"
         />
       </label>
+      <Link href="/recuperar" className="text-brand-accent self-end text-sm font-bold underline">
+        ¿Olvidaste tu contraseña?
+      </Link>
       {state.error && (
         <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">
           {state.error}

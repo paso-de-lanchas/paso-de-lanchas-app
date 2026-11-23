@@ -2,24 +2,9 @@
  * Registro de pasajero con verificación de correo (issue #6). El correo se lee de Mailpit
  * (http://localhost:8025): requiere `docker compose up -d`.
  */
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-const MAILPIT = "http://localhost:8025";
-
-/** Espera el correo más reciente enviado a `to` y devuelve su texto. */
-async function readLatestEmail(request: APIRequestContext, to: string): Promise<string> {
-  let text = "";
-  await expect(async () => {
-    const search = await request.get(`${MAILPIT}/api/v1/search`, {
-      params: { query: `to:"${to}"` },
-    });
-    const { messages } = (await search.json()) as { messages: { ID: string }[] };
-    expect(messages.length).toBeGreaterThan(0);
-    const message = await request.get(`${MAILPIT}/api/v1/message/${messages[0].ID}`);
-    text = ((await message.json()) as { Text: string }).Text;
-  }).toPass({ timeout: 10_000 });
-  return text;
-}
+import { readLatestEmail } from "./support";
 
 test("un pasajero se registra, confirma su correo e inicia sesión", async ({ page, request }) => {
   const email = `pasajero-${Date.now()}@pasolanchas.test`;

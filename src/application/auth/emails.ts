@@ -68,3 +68,47 @@ export function alreadyRegisteredEmail(to: string, fullName: string, appUrl: str
     ),
   };
 }
+
+export function passwordResetEmail(
+  to: string,
+  fullName: string,
+  appUrl: string,
+  token: string,
+  minutes: number,
+): EmailMessage {
+  const url = `${appUrl}/recuperar/${encodeURIComponent(token)}`;
+  return {
+    to,
+    subject: "Recupera tu contraseña · Paso de Lanchas",
+    text:
+      `Hola, ${fullName}.\n\nPara elegir una contraseña nueva abre este enlace (vence en ${minutes} minutos y sirve una sola vez):\n${url}\n\n` +
+      "Si no lo pediste, ignora este correo: tu contraseña no cambia.",
+    html: layout(
+      [
+        `Hola, ${escapeHtml(fullName)}.`,
+        `Para elegir una contraseña nueva usa este enlace. Vence en ${minutes} minutos y sirve una sola vez.`,
+        "Si no lo pediste, ignora este correo: tu contraseña no cambia.",
+      ],
+      { label: "Elegir contraseña nueva", url },
+    ),
+  };
+}
+
+export function passwordChangedEmail(to: string, fullName: string, appUrl: string): EmailMessage {
+  const url = `${appUrl}/recuperar`;
+  return {
+    to,
+    subject: "Tu contraseña cambió · Paso de Lanchas",
+    text:
+      `Hola, ${fullName}.\n\nLa contraseña de tu cuenta acaba de cambiar y se cerraron tus otras sesiones.\n` +
+      `Si no fuiste tú, recupérala aquí: ${url}`,
+    html: layout(
+      [
+        `Hola, ${escapeHtml(fullName)}.`,
+        "La contraseña de tu cuenta acaba de cambiar y se cerraron tus otras sesiones.",
+        "Si no fuiste tú, recupérala de inmediato.",
+      ],
+      { label: "Recuperar mi contraseña", url },
+    ),
+  };
+}

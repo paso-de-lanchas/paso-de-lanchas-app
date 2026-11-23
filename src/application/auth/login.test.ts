@@ -70,6 +70,14 @@ describe("iniciar sesión", () => {
     expect(other.redirectTo).toBe("/chofer");
   });
 
+  it("con contraseña temporal lleva primero a cambiarla (RF-013)", async () => {
+    const driver = makeUser({ id: "c-2", role: "DRIVER", mustChangePassword: true });
+    const { login } = setup([driver]);
+    const result = await login({ email: driver.email, password: PASSWORD, next: "/chofer/viaje" });
+    expect(result.redirectTo).toBe("/cuenta/cambiar-contrasena");
+    expect(result.user.mustChangePassword).toBe(true);
+  });
+
   it("da el mismo error para correo inexistente y contraseña incorrecta", async () => {
     const { login, sessions, audit } = setup();
     await expect(

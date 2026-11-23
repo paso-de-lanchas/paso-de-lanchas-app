@@ -160,3 +160,30 @@ export interface EmailMessage {
 export interface Mailer {
   send(message: EmailMessage): Promise<void>;
 }
+
+/** Recuperar y cambiar contraseña (RF-005, RF-006, RF-013). */
+export interface PasswordRepository {
+  /** Cuenta con ese correo (ya normalizado), sin las eliminadas. */
+  findAccountByEmail(email: string): Promise<ExistingAccount | null>;
+  /**
+   * Enlaces de recuperación de la cuenta (usados o no) que vencen después de `at`. Como todos
+   * duran lo mismo, son los que se crearon en los últimos 30 minutos.
+   */
+  countResetTokensExpiringAfter(userId: string, at: Date): Promise<number>;
+  addResetToken(token: { userId: string; tokenHash: string; expiresAt: Date }): Promise<void>;
+  /** Datos para verificar la contraseña actual y avisar del cambio por correo. */
+  findById(
+    userId: string,
+  ): Promise<{ email: string; fullName: string; passwordHash: string } | null>;
+  /**
+   * En una transacción: marca el enlace como usado (false si otra petición lo usó primero),
+   * invalida los demás enlaces de recuperación, guarda la nueva contraseña (ya no temporal), quita el bloqueo
+   * por intentos y borra TODAS las sesiones de la cuenta.
+   */
+  resetWithToken(tokenId: string, userId: string, passwordHash: string, at: Date): Promise<boolean>;
+  /**
+   * En una transacción: guarda la nueva contraseña, quita `must_change_password` y borra las
+   * demás sesiones (conserva la de `keepSessionTokenHash`).
+   */
+  changePassword(userId: string, passwordHash: string, keepSessionTokenHash: string): Promise<void>;
+}

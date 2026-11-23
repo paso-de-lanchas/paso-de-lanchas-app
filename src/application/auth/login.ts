@@ -9,7 +9,7 @@ import {
   minutesUntilUnlock,
   shouldLock,
 } from "@/domain/auth/lockout";
-import { redirectAfterLogin } from "@/domain/auth/roles";
+import { CHANGE_PASSWORD_PATH, redirectAfterLogin } from "@/domain/auth/roles";
 import { sessionExpiresAt } from "@/domain/auth/session-policy";
 import { DomainError } from "@/domain/shared/domain-error";
 
@@ -223,7 +223,10 @@ export function createLogin(deps: LoginDeps) {
         role: user.role,
         mustChangePassword: user.mustChangePassword,
       },
-      redirectTo: redirectAfterLogin(user.role, next),
+      // Contraseña temporal (RF-013): primero tiene que cambiarla.
+      redirectTo: user.mustChangePassword
+        ? CHANGE_PASSWORD_PATH
+        : redirectAfterLogin(user.role, next),
     };
   };
 }
