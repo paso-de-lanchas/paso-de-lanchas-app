@@ -4,6 +4,7 @@ import type {
   UserCredentialsRepository,
 } from "@/application/auth/ports";
 import type { PrismaClient } from "@/generated/prisma/client";
+import { isUniqueViolation } from "@/infrastructure/db/prisma-errors";
 
 const currentUserFields = {
   id: true,
@@ -93,10 +94,6 @@ export function prismaSessionRepository(db: PrismaClient): SessionRepository {
       return count > 0 ? session : null;
     },
   };
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return (error as { code?: string } | null)?.code === "P2002";
 }
 
 const deviceFields = { id: true, dockId: true, status: true } as const;

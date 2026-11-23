@@ -13,6 +13,12 @@ export default function HomePage() {
       >
         Iniciar sesión
       </Link>
+      <Link
+        href="/registro"
+        className="border-brand text-brand flex h-14 w-full items-center justify-center rounded-2xl border-2 text-lg font-bold"
+      >
+        Crear cuenta de pasajero
+      </Link>
       <p className="text-ink-muted text-sm">
         Cada cuenta entra a su sección: pasajero, chofer, administrador o superadministrador.
       </p>

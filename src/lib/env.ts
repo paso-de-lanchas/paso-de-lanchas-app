@@ -11,6 +11,8 @@ const serverEnvSchema = z.object({
   QR_SIGNING_SECRET: z.string().optional(),
   SMTP_HOST: z.string().default("localhost"),
   SMTP_PORT: z.coerce.number().int().default(1025),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
   MAIL_FROM: z.string().default("Paso de Lanchas <no-responder@pasolanchas.test>"),
   MERCADOPAGO_ACCESS_TOKEN: z.string().optional(),
   MERCADOPAGO_WEBHOOK_SECRET: z.string().optional(),

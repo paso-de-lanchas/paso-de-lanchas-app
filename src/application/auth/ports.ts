@@ -101,3 +101,62 @@ export interface TokenService {
   generate(): string;
   hash(token: string): string;
 }
+
+export type EmailTokenPurpose = "EMAIL_VERIFICATION" | "PASSWORD_RESET";
+
+/** Cuenta ya registrada con un correo (sin datos sensibles). */
+export interface ExistingAccount {
+  id: string;
+  fullName: string;
+  status: AccountStatus;
+}
+
+export interface PassengerRegistrationRepository {
+  findAccountByEmail(email: string): Promise<ExistingAccount | null>;
+  /**
+   * Crea, en una sola transacción, el pasajero en PENDING_VERIFICATION, su monedero en $0 y
+   * su token de verificación. Devuelve null si el correo ya estaba registrado.
+   */
+  createPassenger(data: {
+    email: string;
+    fullName: string;
+    phone: string;
+    passwordHash: string;
+    privacyAcceptedAt: Date;
+    verificationTokenHash: string;
+    verificationExpiresAt: Date;
+  }): Promise<{ id: string } | null>;
+  addEmailToken(token: {
+    userId: string;
+    purpose: EmailTokenPurpose;
+    tokenHash: string;
+    expiresAt: Date;
+  }): Promise<void>;
+}
+
+export interface EmailTokenRecord {
+  id: string;
+  userId: string;
+  expiresAt: Date;
+  usedAt: Date | null;
+}
+
+export interface EmailTokenRepository {
+  findByHash(tokenHash: string, purpose: EmailTokenPurpose): Promise<EmailTokenRecord | null>;
+  /**
+   * Marca el token como usado y activa la cuenta (si estaba pendiente), en una transacción.
+   * Devuelve false si otra petición lo usó primero.
+   */
+  consumeAndVerifyEmail(tokenId: string, userId: string, at: Date): Promise<boolean>;
+}
+
+export interface EmailMessage {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+}
+
+export interface Mailer {
+  send(message: EmailMessage): Promise<void>;
+}

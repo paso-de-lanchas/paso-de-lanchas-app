@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { checkDevice, requiresAuthorizedDevice } from "@/domain/auth/authorized-device";
+import { normalizeEmail } from "@/domain/auth/email";
 import {
   hasLockout,
   isLocked,
@@ -25,7 +26,7 @@ import type {
 } from "./ports";
 
 export const loginInputSchema = z.object({
-  email: z.string().trim().toLowerCase().max(120).pipe(z.email()),
+  email: z.string().max(120).transform(normalizeEmail).pipe(z.email()),
   password: z.string().min(1).max(256),
   next: z.string().max(300).optional(),
 });

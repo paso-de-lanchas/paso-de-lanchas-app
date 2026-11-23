@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useActionState } from "react";
 
@@ -47,6 +48,12 @@ export function LoginForm() {
       >
         {pending ? "Entrando…" : "Iniciar sesión"}
       </button>
+      <p className="text-ink-muted text-center text-sm">
+        ¿No tienes cuenta?{" "}
+        <Link href="/registro" className="text-brand-accent font-bold underline">
+          Crea una
+        </Link>
+      </p>
     </form>
   );
 }

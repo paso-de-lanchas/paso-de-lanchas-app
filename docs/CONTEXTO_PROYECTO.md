@@ -183,3 +183,7 @@ Este proyecto es **ingeniería de software**: todo código debe:
 - Seguridad del personal (#9, D25): bloqueo por intentos, computadoras autorizadas con cookie de dispositivo (solo su
   hash en la base), cierre por inactividad, sesiones cortadas si se retira la computadora y bitácora de cada rechazo.
   Script de desarrollo `npm run dev:aprobar-computadoras` mientras llega la pantalla del superadmin (sprint 3).
+- Registro de pasajero (#6): nombre, correo, celular a 10 dígitos y contraseña (8+ con letra y número); aviso de
+  privacidad obligatorio (`privacy_accepted_at`). La cuenta nace `PENDING_VERIFICATION` con monedero en $0 y se activa
+  con un enlace de 24 h que se confirma con un botón (no al abrirlo, para que los antivirus de correo no lo gasten).
+  Si el correo ya existe, la pantalla responde igual y al dueño le llega un aviso. Correo por SMTP con nodemailer.

@@ -7,12 +7,100 @@ import type {
   AuthorizedDeviceRepository,
   AuthSettings,
   AuthSettingsProvider,
+  EmailMessage,
+  EmailTokenPurpose,
+  EmailTokenRepository,
+  Mailer,
+  PassengerRegistrationRepository,
   PasswordHasher,
   SessionRepository,
   TokenService,
   UserCredentials,
   UserCredentialsRepository,
 } from "./ports";
+
+export function memoryMailer(): Mailer & { sent: EmailMessage[] } {
+  const sent: EmailMessage[] = [];
+  return { sent, send: async (message) => void sent.push(message) };
+}
+
+export interface MemoryAccount {
+  id: string;
+  email: string;
+  fullName: string;
+  phone: string | null;
+  passwordHash: string;
+  status: UserCredentials["status"];
+  emailVerifiedAt: Date | null;
+  walletBalance: string | null;
+}
+
+export interface MemoryEmailToken {
+  id: string;
+  userId: string;
+  purpose: EmailTokenPurpose;
+  tokenHash: string;
+  expiresAt: Date;
+  usedAt: Date | null;
+}
+
+/** Cuentas, monederos y tokens por correo en memoria (registro y verificación). */
+export function memoryAccounts(accounts: MemoryAccount[] = [], tokens: MemoryEmailToken[] = []) {
+  const addToken = (token: Omit<MemoryEmailToken, "id" | "usedAt">) =>
+    void tokens.push({ ...token, id: `t-${tokens.length + 1}`, usedAt: null });
+
+  const registration: PassengerRegistrationRepository = {
+    findAccountByEmail: async (email) => {
+      const account = accounts.find((a) => a.email === email);
+      return account
+        ? { id: account.id, fullName: account.fullName, status: account.status }
+        : null;
+    },
+    createPassenger: async (data) => {
+      if (accounts.some((a) => a.email === data.email)) return null;
+      const id = `u-${accounts.length + 1}`;
+      accounts.push({
+        id,
+        email: data.email,
+        fullName: data.fullName,
+        phone: data.phone,
+        passwordHash: data.passwordHash,
+        status: "PENDING_VERIFICATION",
+        emailVerifiedAt: null,
+        walletBalance: "0.00",
+      });
+      addToken({
+        userId: id,
+        purpose: "EMAIL_VERIFICATION",
+        tokenHash: data.verificationTokenHash,
+        expiresAt: data.verificationExpiresAt,
+      });
+      return { id };
+    },
+    addEmailToken: async (token) => addToken(token),
+  };
+
+  const emailTokens: EmailTokenRepository = {
+    findByHash: async (tokenHash, purpose) => {
+      const token = tokens.find((t) => t.tokenHash === tokenHash && t.purpose === purpose);
+      return token
+        ? { id: token.id, userId: token.userId, expiresAt: token.expiresAt, usedAt: token.usedAt }
+        : null;
+    },
+    consumeAndVerifyEmail: async (tokenId, userId, at) => {
+      const token = tokens.find((t) => t.id === tokenId);
+      if (!token || token.usedAt) return false;
+      token.usedAt = at;
+      const account = accounts.find((a) => a.id === userId);
+      if (account?.status === "PENDING_VERIFICATION") {
+        Object.assign(account, { status: "ACTIVE", emailVerifiedAt: at });
+      }
+      return true;
+    },
+  };
+
+  return { accounts, tokens, registration, emailTokens };
+}
 
 export const fakeHasher: PasswordHasher = {
   hash: async (password) => `hash:${password}`,

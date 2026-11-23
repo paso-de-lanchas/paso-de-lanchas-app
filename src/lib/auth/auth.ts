@@ -8,7 +8,9 @@ import {
   type LoginResult,
 } from "@/application/auth/login";
 import type { CurrentUser } from "@/application/auth/ports";
+import { createRegisterPassenger } from "@/application/auth/register-passenger";
 import { createGetCurrentUser, createLogout } from "@/application/auth/session";
+import { createVerifyEmail } from "@/application/auth/verify-email";
 import { systemClock } from "@/application/shared/ports";
 import { prismaAuditLogger } from "@/infrastructure/audit/prisma-audit-logger";
 import { argon2PasswordHasher } from "@/infrastructure/auth/argon2-password-hasher";
@@ -19,7 +21,13 @@ import {
   prismaUserCredentialsRepository,
 } from "@/infrastructure/auth/prisma-auth-repositories";
 import { prismaAuthSettings } from "@/infrastructure/auth/prisma-auth-settings";
+import {
+  prismaEmailTokenRepository,
+  prismaPassengerRegistrationRepository,
+} from "@/infrastructure/auth/prisma-registration-repositories";
+import { smtpMailer } from "@/infrastructure/auth/smtp-mailer";
 import { prisma } from "@/infrastructure/db/prisma";
+import { env } from "@/lib/env";
 
 import {
   DEVICE_COOKIE,
@@ -54,6 +62,33 @@ const getCurrentUserUseCase = createGetCurrentUser({
   clock: systemClock,
 });
 const logoutUseCase = createLogout({ sessions, tokens: cryptoTokenService, audit });
+
+const mailer = smtpMailer({
+  host: env.SMTP_HOST,
+  port: env.SMTP_PORT,
+  user: env.SMTP_USER,
+  password: env.SMTP_PASSWORD,
+  from: env.MAIL_FROM,
+});
+
+/** Registro de pasajero (RF-001). Lanza RegistrationInputError con el error de cada campo. */
+export const registerPassenger = createRegisterPassenger({
+  accounts: prismaPassengerRegistrationRepository(prisma),
+  hasher: argon2PasswordHasher,
+  tokens: cryptoTokenService,
+  mailer,
+  audit,
+  clock: systemClock,
+  appUrl: env.APP_URL,
+});
+
+/** Confirmar el correo con el enlace (RF-002). */
+export const verifyEmail = createVerifyEmail({
+  emailTokens: prismaEmailTokenRepository(prisma),
+  tokens: cryptoTokenService,
+  audit,
+  clock: systemClock,
+});
 
 /** Inicia sesión y guarda la cookie. Solo desde una Server Action o una ruta API. */
 export async function signIn(input: LoginInput): Promise<LoginResult> {
