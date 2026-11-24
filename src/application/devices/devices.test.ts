@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { fixedClock, memoryAudit } from "../auth/test-doubles";
 import { InputError } from "../shared/input-error";
+import type { ChangeAudit } from "../shared/ports";
 import { DOCKS } from "../staff/test-doubles";
 import {
   createApproveDevice,
@@ -57,6 +58,10 @@ function setup() {
     { ...device({ id: APPROVED_ID, status: "APPROVED", name: "Taquilla COA 1" }), sessions: 2 },
   ];
   const byId = (id: string) => items.find((d) => d.id === id);
+  const audit = memoryAudit();
+  // Como el repositorio real: el evento se guarda solo si el cambio sí se aplicó.
+  const record = (id: string, entry: ChangeAudit) =>
+    audit.log({ ...entry, entity: "authorized_device", entityId: id });
   const devices: DeviceAdminRepository = {
     list: async (status) => items.filter((d) => d.status === status),
     // Copia, como Prisma: lo que lee el caso de uso no cambia si después se modifica.
@@ -66,7 +71,7 @@ function setup() {
     },
     listDocks: async () => DOCKS,
     dockExists: async (id) => DOCKS.some((d) => d.id === id),
-    approve: async (id, data) => {
+    approve: async (id, data, entry) => {
       const d = byId(id)!;
       if (d.status !== "PENDING") return false;
       Object.assign(d, {
@@ -76,23 +81,25 @@ function setup() {
         approvedById: data.approvedById,
         approvedAt: data.at,
       });
+      await record(id, entry);
       return true;
     },
-    revoke: async (id) => {
+    revoke: async (id, entry) => {
       const d = byId(id)!;
       if (d.status === "REVOKED") return false;
       Object.assign(d, { status: "REVOKED", sessions: 0 });
+      await record(id, entry);
       return true;
     },
-    rename: async (id, name) => {
+    rename: async (id, name, entry) => {
       const d = byId(id)!;
       if (d.status === "REVOKED") return false;
       d.name = name;
+      await record(id, entry);
       return true;
     },
   };
-  const audit = memoryAudit();
-  const deps = { devices, audit, clock: fixedClock("2026-11-24T12:00:00Z") };
+  const deps = { devices, clock: fixedClock("2026-11-24T12:00:00Z") };
   return {
     items,
     devices,
@@ -114,13 +121,13 @@ describe("computadoras del muelle (RF-120, RF-121)", () => {
     expect(pending.docks).toEqual(DOCKS);
   });
 
-  it("aprueba la computadora de un administrador en un muelle, con nombre y bitácora", async () => {
+  it("aprueba la computadora de un administrador en su muelle, con nombre y bitácora", async () => {
     const s = setup();
-    await s.approve(actor, ADMIN_ID, { name: "  Taquilla VAL 1 ", dockId: DOCKS[1].id });
+    await s.approve(actor, ADMIN_ID, { name: "  Taquilla COA 2 ", dockId: DOCKS[0].id });
     expect(s.items[0]).toMatchObject({
       status: "APPROVED",
-      name: "Taquilla VAL 1",
-      dockId: DOCKS[1].id,
+      name: "Taquilla COA 2",
+      dockId: DOCKS[0].id,
       approvedById: actor.id,
       approvedAt: new Date("2026-11-24T12:00:00Z"),
     });
@@ -142,6 +149,19 @@ describe("computadoras del muelle (RF-120, RF-121)", () => {
 
     await s.approve(actor, OFFICE_ID, { name: "Oficina central", dockId: "" });
     expect(s.items[1]).toMatchObject({ status: "APPROVED", dockId: null });
+  });
+
+  it("la de un administrador no se aprueba para otro muelle (el login la rechazaría)", async () => {
+    const s = setup();
+    const error = await s
+      .approve(actor, ADMIN_ID, { name: "Taquilla VAL 1", dockId: DOCKS[1].id })
+      .catch((e) => e);
+    expect(error).toBeInstanceOf(InputError);
+    expect((error as InputError).fieldErrors).toMatchObject({
+      dockId: expect.stringContaining("muelle de ese administrador"),
+    });
+    expect(s.items[0].status).toBe("PENDING");
+    expect(s.audit.entries).toHaveLength(0);
   });
 
   it("rechaza un muelle inexistente, un nombre corto y aprobar dos veces", async () => {

@@ -1,5 +1,12 @@
 import type { DeviceAdminRepository, DeviceView } from "@/application/devices/ports";
+import type { ChangeAudit } from "@/application/shared/ports";
 import type { PrismaClient } from "@/generated/prisma/client";
+import { auditLogData } from "@/infrastructure/audit/prisma-audit-logger";
+
+/** El evento de bitácora de un cambio a la computadora `id`, para guardarlo en su transacción. */
+function auditFor(id: string, audit: ChangeAudit) {
+  return { data: auditLogData({ ...audit, entity: "authorized_device", entityId: id }) };
+}
 
 const deviceFields = {
   id: true,
@@ -50,15 +57,18 @@ export function prismaDeviceAdminRepository(db: PrismaClient): DeviceAdminReposi
     async dockExists(dockId) {
       return (await db.dock.count({ where: { id: dockId } })) > 0;
     },
-    async approve(id, { name, dockId, approvedById, at }) {
-      // Condición PENDING: si dos superadmins aprueban a la vez, solo cuenta la primera.
-      const { count } = await db.authorizedDevice.updateMany({
-        where: { id, status: "PENDING" },
-        data: { status: "APPROVED", name, dockId, approvedById, approvedAt: at },
-      });
-      return count > 0;
-    },
-    revoke: (id) =>
+    approve: (id, { name, dockId, approvedById, at }, audit) =>
+      db.$transaction(async (tx) => {
+        // Condición PENDING: si dos superadmins aprueban a la vez, solo cuenta la primera.
+        const { count } = await tx.authorizedDevice.updateMany({
+          where: { id, status: "PENDING" },
+          data: { status: "APPROVED", name, dockId, approvedById, approvedAt: at },
+        });
+        if (count === 0) return false;
+        await tx.auditLog.create(auditFor(id, audit));
+        return true;
+      }),
+    revoke: (id, audit) =>
       db.$transaction(async (tx) => {
         const { count } = await tx.authorizedDevice.updateMany({
           where: { id, status: { in: ["PENDING", "APPROVED"] } },
@@ -67,14 +77,18 @@ export function prismaDeviceAdminRepository(db: PrismaClient): DeviceAdminReposi
         if (count === 0) return false;
         // getCurrentUser ya rechaza sesiones de una computadora revocada; además se borran.
         await tx.session.deleteMany({ where: { deviceId: id } });
+        await tx.auditLog.create(auditFor(id, audit));
         return true;
       }),
-    async rename(id, name) {
-      const { count } = await db.authorizedDevice.updateMany({
-        where: { id, status: { not: "REVOKED" } },
-        data: { name },
-      });
-      return count > 0;
-    },
+    rename: (id, name, audit) =>
+      db.$transaction(async (tx) => {
+        const { count } = await tx.authorizedDevice.updateMany({
+          where: { id, status: { not: "REVOKED" } },
+          data: { name },
+        });
+        if (count === 0) return false;
+        await tx.auditLog.create(auditFor(id, audit));
+        return true;
+      }),
   };
 }

@@ -11,18 +11,18 @@ import {
 import { DomainError } from "@/domain/shared/domain-error";
 
 import { InputError, parseInput } from "../shared/input-error";
-import type { AuditLogger, Clock } from "../shared/ports";
+import type { Clock } from "../shared/ports";
 import type { DockOption } from "../staff/ports";
 import type { DeviceAdminRepository, DeviceView } from "./ports";
 
 /**
  * Aprobar, renombrar y revocar las computadoras del muelle (RF-120, RF-121). Solo las usa el
- * superadministrador (lo verifica `assertRole("SUPERADMIN")` antes de llamarlas).
+ * superadministrador (lo verifica `assertRole("SUPERADMIN")` antes de llamarlas). Cada cambio
+ * va con su evento de bitácora, que el repositorio guarda en la misma transacción.
  */
 
 export interface DeviceDeps {
   devices: DeviceAdminRepository;
-  audit: AuditLogger;
   clock: Clock;
 }
 
@@ -100,29 +100,27 @@ export function createApproveDevice(deps: DeviceDeps) {
       approveDeviceSchema,
       input,
     );
-    if (!isValidDeviceDock(device.requestedBy.role, data.dockId)) {
+    // La de un administrador solo puede ser de su propio muelle: con otro, el login la
+    // rechazaría después (WRONG_DOCK).
+    if (!isValidDeviceDock(device.requestedBy, data.dockId)) {
       throw new InputError<ApproveDeviceField>({
-        dockId: "La computadora de un administrador debe ser de un muelle.",
+        dockId: "La computadora de un administrador debe ser del muelle de ese administrador.",
       });
     }
     if (data.dockId && !(await deps.devices.dockExists(data.dockId))) {
       throw new InputError<ApproveDeviceField>({ dockId: "Elige un muelle de la lista." });
     }
 
-    const approved = await deps.devices.approve(device.id, {
-      ...data,
-      approvedById: actor.id,
-      at: deps.clock.now(),
-    });
+    const approved = await deps.devices.approve(
+      device.id,
+      { ...data, approvedById: actor.id, at: deps.clock.now() },
+      {
+        userId: actor.id,
+        action: "DEVICE_APPROVED",
+        details: { dockId: data.dockId, name: data.name, requestedBy: device.requestedBy.email },
+      },
+    );
     if (!approved) throw DEVICE_CHANGED;
-
-    await deps.audit.log({
-      userId: actor.id,
-      action: "DEVICE_APPROVED",
-      entity: "authorized_device",
-      entityId: device.id,
-      details: { dockId: data.dockId, name: data.name, requestedBy: device.requestedBy.email },
-    });
   };
 }
 
@@ -133,15 +131,12 @@ export function createRevokeDevice(deps: DeviceDeps) {
     if (!canRevokeDevice(device.status)) {
       throw new DomainError("DEVICE_ALREADY_REVOKED", "La computadora ya está revocada.");
     }
-    if (!(await deps.devices.revoke(device.id))) throw DEVICE_CHANGED;
-
-    await deps.audit.log({
+    const revoked = await deps.devices.revoke(device.id, {
       userId: actor.id,
       action: "DEVICE_REVOKED",
-      entity: "authorized_device",
-      entityId: device.id,
       details: { from: device.status },
     });
+    if (!revoked) throw DEVICE_CHANGED;
   };
 }
 
@@ -157,16 +152,13 @@ export function createRenameDevice(deps: DeviceDeps) {
       z.object({ name: nameSchema }),
       { name: rawName },
     );
-    if (!(await deps.devices.rename(device.id, name))) {
-      throw new DomainError("DEVICE_REVOKED", "No se puede renombrar una computadora revocada.");
-    }
-
-    await deps.audit.log({
+    const renamed = await deps.devices.rename(device.id, name, {
       userId: actor.id,
       action: "DEVICE_RENAMED",
-      entity: "authorized_device",
-      entityId: device.id,
       details: { from: device.name, to: name },
     });
+    if (!renamed) {
+      throw new DomainError("DEVICE_REVOKED", "No se puede renombrar una computadora revocada.");
+    }
   };
 }

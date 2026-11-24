@@ -46,10 +46,13 @@ describe("aprobar y revocar computadoras (RF-121)", () => {
     expect(canRevokeDevice("REVOKED")).toBe(false);
   });
 
-  it("la computadora de un administrador necesita muelle; la del superadmin puede ser de oficina", () => {
-    expect(isValidDeviceDock("ADMIN", null)).toBe(false);
-    expect(isValidDeviceDock("ADMIN", "coa")).toBe(true);
-    expect(isValidDeviceDock("SUPERADMIN", null)).toBe(true);
-    expect(isValidDeviceDock("SUPERADMIN", "coa")).toBe(true);
+  it("la computadora de un administrador debe ser de su muelle; la del superadmin, de cualquiera u oficina", () => {
+    expect(isValidDeviceDock(admin, null)).toBe(false);
+    expect(isValidDeviceDock(admin, "val")).toBe(false);
+    expect(isValidDeviceDock(admin, "coa")).toBe(true);
+    // Lo que se aprueba es lo mismo que el login acepta después.
+    expect(checkDevice(admin, { status: "APPROVED", dockId: "coa" })).toBe("ALLOWED");
+    expect(isValidDeviceDock(superadmin, null)).toBe(true);
+    expect(isValidDeviceDock(superadmin, "coa")).toBe(true);
   });
 });

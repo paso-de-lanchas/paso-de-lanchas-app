@@ -1,6 +1,7 @@
 import type { DeviceStatus } from "@/domain/auth/authorized-device";
 import type { Role } from "@/domain/auth/roles";
 
+import type { ChangeAudit } from "../shared/ports";
 import type { DockOption } from "../staff/ports";
 
 /** Puertos de la administración de computadoras del muelle (RF-120, RF-121). */
@@ -24,16 +25,21 @@ export interface DeviceAdminRepository {
   findById(id: string): Promise<DeviceView | null>;
   listDocks(): Promise<DockOption[]>;
   dockExists(dockId: string): Promise<boolean>;
+  /*
+   * Cada cambio recibe su evento de bitácora y lo guarda en la misma transacción (entidad
+   * "authorized_device", id de la computadora): o quedan las dos cosas o ninguna.
+   */
   /** Aprueba solo si sigue PENDING (false si otra petición la cambió antes). */
   approve(
     id: string,
     data: { name: string; dockId: string | null; approvedById: string; at: Date },
+    audit: ChangeAudit,
   ): Promise<boolean>;
   /**
    * Pasa a REVOKED si estaba PENDING o APPROVED y, en la misma transacción, borra las sesiones
    * abiertas desde ella. Devuelve false si ya estaba revocada.
    */
-  revoke(id: string): Promise<boolean>;
+  revoke(id: string, audit: ChangeAudit): Promise<boolean>;
   /** Cambia el nombre de una computadora que no esté revocada. */
-  rename(id: string, name: string): Promise<boolean>;
+  rename(id: string, name: string, audit: ChangeAudit): Promise<boolean>;
 }

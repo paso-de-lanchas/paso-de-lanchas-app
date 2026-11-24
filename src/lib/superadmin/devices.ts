@@ -5,17 +5,16 @@ import {
   createRevokeDevice,
 } from "@/application/devices/device-use-cases";
 import { systemClock } from "@/application/shared/ports";
-import { prismaAuditLogger } from "@/infrastructure/audit/prisma-audit-logger";
 import { prisma } from "@/infrastructure/db/prisma";
 import { prismaDeviceAdminRepository } from "@/infrastructure/devices/prisma-device-admin-repository";
 
 /**
  * Computadoras del muelle (issue #42) armadas con sus implementaciones reales. Solo se usa en
  * el servidor, y siempre después de `assertRole("SUPERADMIN")` o `requireRole("SUPERADMIN")`.
+ * La bitácora la guarda el repositorio en la misma transacción que cada cambio.
  */
 const deps = {
   devices: prismaDeviceAdminRepository(prisma),
-  audit: prismaAuditLogger(prisma),
   clock: systemClock,
 };
 

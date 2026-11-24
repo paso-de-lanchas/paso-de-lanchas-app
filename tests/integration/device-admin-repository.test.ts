@@ -86,29 +86,59 @@ describe.skipIf(!prisma)("repositorio de computadoras", () => {
     expect(view!.requestedAt).toBeInstanceOf(Date);
   });
 
+  // Actor nulo: la bitácora es de solo inserción y borrar a un usuario con eventos fallaría.
+  const audit = (action: string) => ({ userId: null, action });
+  const auditCount = (action: string) =>
+    db.auditLog.count({ where: { entity: "authorized_device", entityId: deviceId, action } });
+
+  it("si la bitácora falla, la aprobación tampoco se aplica (misma transacción)", async () => {
+    const broken = { userId: "00000000-0000-4000-8000-00000000dead", action: "BROKEN" };
+    const at = new Date();
+    await expect(
+      repo.approve(
+        deviceId,
+        { name: "Sin bitácora", dockId, approvedById: superadminId, at },
+        broken,
+      ),
+    ).rejects.toThrow();
+    expect((await repo.findById(deviceId))!.status).toBe("PENDING");
+  });
+
   it("aprueba solo una vez y renombra", async () => {
     const at = new Date();
     expect(
-      await repo.approve(deviceId, { name: "Taquilla 1", dockId, approvedById: superadminId, at }),
+      await repo.approve(
+        deviceId,
+        { name: "Taquilla 1", dockId, approvedById: superadminId, at },
+        audit("APPROVED"),
+      ),
     ).toBe(true);
     expect(
-      await repo.approve(deviceId, { name: "Otra", dockId: null, approvedById: superadminId, at }),
+      await repo.approve(
+        deviceId,
+        { name: "Otra", dockId: null, approvedById: superadminId, at },
+        audit("APPROVED"),
+      ),
     ).toBe(false);
+    expect(await auditCount("APPROVED")).toBe(1);
     expect(await repo.findById(deviceId)).toMatchObject({
       status: "APPROVED",
       name: "Taquilla 1",
       approvedByName: "Super de prueba",
     });
-    expect(await repo.rename(deviceId, "Taquilla principal")).toBe(true);
+    expect(await repo.rename(deviceId, "Taquilla principal", audit("RENAMED"))).toBe(true);
+    expect(await auditCount("RENAMED")).toBe(1);
     expect((await repo.findById(deviceId))!.name).toBe("Taquilla principal");
   });
 
   it("revocar borra las sesiones abiertas desde ella y no se repite", async () => {
     expect(await db.session.count({ where: { deviceId } })).toBe(1);
-    expect(await repo.revoke(deviceId)).toBe(true);
+    expect(await repo.revoke(deviceId, audit("REVOKED"))).toBe(true);
     expect(await db.session.count({ where: { deviceId } })).toBe(0);
-    expect(await repo.revoke(deviceId)).toBe(false);
-    expect(await repo.rename(deviceId, "Ya no")).toBe(false);
+    expect(await repo.revoke(deviceId, audit("REVOKED"))).toBe(false);
+    expect(await repo.rename(deviceId, "Ya no", audit("RENAMED"))).toBe(false);
+    expect(await auditCount("REVOKED")).toBe(1);
+    expect(await auditCount("RENAMED")).toBe(1);
     expect((await repo.list("REVOKED")).map((d) => d.id)).toContain(deviceId);
   });
 });

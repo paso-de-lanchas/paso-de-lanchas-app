@@ -171,6 +171,7 @@ npm run format             Prettier
 | 2026-11-23 | José | Issue #48: tablero en vivo de muelles con actualización cada 10 s (`GET /api/pasajero/muelles`), tiempos estimados de salida/llegada (`eta.ts`), horarios, tarifas vigentes (`crossing_minutes` en seed) e historial paginado de viajes (RF-082 a RF-087) |
 | 2026-11-24 | Omar (con Claude) | Cuentas del personal (#41): alta de admin/chofer con contraseña temporal de 12 caracteres (`crypto.randomInt`), desactivar con cierre de sesiones, reactivar, desbloquear y restablecer; nunca superadmins ni pasajeros; bitácora; `src/lib/mailer.ts` compartido; chofer `chofer.temporal` en el seed; ayudas e2e en `tests/e2e/auth-helpers.ts` |
 | 2026-11-24 | Omar (con Claude) | Computadoras del muelle (#42): pantalla del superadmin para aprobar (nombre y muelle; la del admin no puede quedar de oficina), renombrar y revocar (borra sus sesiones); columna `authorized_devices.requested_at`; `dev:aprobar-computadoras -- correo` para que las pruebas en paralelo no se crucen |
+| 2026-11-24 | Omar (con Claude) | Revisión de Cova a #55 y #56: cada cambio de cuentas del personal y de computadoras guarda su bitácora **en la misma transacción** (`ChangeAudit`, `auditLogData`); la acción de estado solo acepta DEACTIVATE/REACTIVATE; la computadora de un admin solo se aprueba para **su** muelle |
 
 ## Registro de errores y soluciones
 

@@ -41,10 +41,14 @@ export function canRevokeDevice(status: DeviceStatus): boolean {
 }
 
 /**
- * Muelle con el que se aprueba la computadora. La de un administrador debe ser de un muelle
- * (si no, `checkDevice` lo rechazaría por WRONG_DOCK); la del superadministrador puede ser de
- * oficina (sin muelle).
+ * Muelle con el que se aprueba la computadora. La de un administrador debe ser **de su
+ * muelle** (si no, `checkDevice` lo rechazaría por WRONG_DOCK al entrar); la del
+ * superadministrador puede ser de cualquier muelle o de oficina (sin muelle).
  */
-export function isValidDeviceDock(requesterRole: Role, dockId: string | null): boolean {
-  return requesterRole === "ADMIN" ? dockId !== null : true;
+export function isValidDeviceDock(
+  requester: { role: Role; dockId: string | null },
+  dockId: string | null,
+): boolean {
+  if (requester.role !== "ADMIN") return true;
+  return dockId !== null && dockId === requester.dockId;
 }

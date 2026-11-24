@@ -84,7 +84,12 @@ async function Devices({
                     name={device.name}
                     dockId={device.dockId ?? device.requestedBy.dockId}
                     allowOffice={device.requestedBy.role === "SUPERADMIN"}
-                    docks={docks}
+                    // La de un administrador solo puede ser de su muelle (el servidor también lo exige).
+                    docks={
+                      device.requestedBy.role === "ADMIN"
+                        ? docks.filter((dock) => dock.id === device.requestedBy.dockId)
+                        : docks
+                    }
                   />
                 )}
                 {device.status === "APPROVED" && (
