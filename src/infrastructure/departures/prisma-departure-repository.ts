@@ -153,12 +153,15 @@ export class PrismaDepartureRepository implements DepartureRepository {
         if (updated.count === 0) {
           throw new DomainError(
             "DEPARTURE_CONFLICT",
-            "El estado de la salida cambió de forma concurrente al intentar cancelarla.",
+            "El estado de la salida cambiÃ³ de forma concurrente al intentar cancelarla.",
           );
         }
         const record = await this.findDepartureByIdWithClient(client, params.departureId);
         if (!record) {
-          throw new DomainError("DEPARTURE_NOT_FOUND", "No se encontró la salida tras cancelarla.");
+          throw new DomainError(
+            "DEPARTURE_NOT_FOUND",
+            "No se encontrÃ³ la salida tras cancelarla.",
+          );
         }
         return record;
       },
@@ -217,7 +220,7 @@ export class PrismaDepartureRepository implements DepartureRepository {
         if (!wallet) {
           throw new DomainError(
             "WALLET_NOT_FOUND",
-            "No se encontró el monedero del pasajero para reembolsar.",
+            "No se encontrÃ³ el monedero del pasajero para reembolsar.",
           );
         }
 
@@ -252,6 +255,40 @@ export class PrismaDepartureRepository implements DepartureRepository {
             saleId: input.saleId,
             performedById: input.performedById,
             reason: input.reason,
+          },
+        });
+      },
+
+      recordCashRefund: async (
+        tx: unknown,
+        input: {
+          boardingId: string;
+          saleId: string;
+          departureId: string | null;
+          passengerId: string | null;
+          seatNumber: number;
+          amountPesos: string;
+          reason: string;
+          performedById: string;
+        },
+      ): Promise<void> => {
+        const client = asTx(tx, this.prisma);
+        await client.auditLog.create({
+          data: {
+            userId: input.performedById,
+            action: "CASH_REFUND_READY",
+            entity: "boardings",
+            entityId: input.boardingId,
+            details: {
+              boardingId: input.boardingId,
+              saleId: input.saleId,
+              departureId: input.departureId,
+              passengerId: input.passengerId,
+              seatNumber: input.seatNumber,
+              amount: input.amountPesos,
+              refundMethod: "CASH_BOX",
+              reason: input.reason,
+            },
           },
         });
       },
@@ -298,7 +335,7 @@ export class PrismaDepartureRepository implements DepartureRepository {
         }
         const record = await this.findDepartureByIdWithClient(client, params.departureId);
         if (!record) {
-          throw new DomainError("DEPARTURE_NOT_FOUND", "No se encontró la salida finalizada.");
+          throw new DomainError("DEPARTURE_NOT_FOUND", "No se encontrÃ³ la salida finalizada.");
         }
         return record;
       },
@@ -511,7 +548,7 @@ export class PrismaDepartureRepository implements DepartureRepository {
       include: departureInclude,
     });
     if (!row) {
-      throw new DomainError("DEPARTURE_NOT_FOUND", "No se encontró la salida actualizada.");
+      throw new DomainError("DEPARTURE_NOT_FOUND", "No se encontrÃ³ la salida actualizada.");
     }
     return toDepartureRecord(row);
   }
@@ -592,7 +629,7 @@ export class PrismaDepartureRepository implements DepartureRepository {
 
     const current = rows[0];
     if (!current) {
-      throw new DomainError("DEPARTURE_NOT_FOUND", "No se encontró la salida para asignar lugar.");
+      throw new DomainError("DEPARTURE_NOT_FOUND", "No se encontrÃ³ la salida para asignar lugar.");
     }
     if (current.status !== "BOARDING") {
       throw new DomainError(
@@ -603,7 +640,7 @@ export class PrismaDepartureRepository implements DepartureRepository {
     if (current.occupied_seats >= current.passenger_capacity) {
       throw new DomainError(
         "DEPARTURE_CAPACITY_FULL",
-        "La salida ya alcanzó su capacidad máxima de pasajeros.",
+        "La salida ya alcanzÃ³ su capacidad mÃ¡xima de pasajeros.",
       );
     }
 

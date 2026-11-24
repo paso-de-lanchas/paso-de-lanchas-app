@@ -116,6 +116,17 @@ export interface RefundPassengerInput {
   performedById: string;
 }
 
+export interface CashRefundRecordInput {
+  boardingId: string;
+  saleId: string;
+  departureId: string | null;
+  passengerId: string | null;
+  seatNumber: number;
+  amountPesos: string;
+  reason: string;
+  performedById: string;
+}
+
 export interface CreateNotificationInput {
   userId: string;
   type: string;
@@ -143,6 +154,7 @@ export interface DepartureUnitOfWork {
     params: { boardingId: string; cancelReason: string },
   ): Promise<void>;
   creditWalletRefund(tx: unknown, input: RefundPassengerInput): Promise<void>;
+  recordCashRefund?(tx: unknown, input: CashRefundRecordInput): Promise<void>;
   createNotification(tx: unknown, input: CreateNotificationInput): Promise<void>;
   markDepartureFinished(
     tx: unknown,
@@ -177,5 +189,5 @@ export interface DepartureRepository {
   findBoardingForUpdate(tx: unknown, dockId: string): Promise<DepartureRecord | null>;
   occupySeat(tx: unknown, departureId: string): Promise<number>;
   listBoardingsByDepartureId?(departureId: string): Promise<DepartureBoardingItem[]>;
-  unitOfWork?: DepartureUnitOfWork;
+  unitOfWork: DepartureUnitOfWork;
 }

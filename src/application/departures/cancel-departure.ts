@@ -1,8 +1,12 @@
 import { assertDepartureTransition } from "@/domain/departures/departure-state";
 import { DomainError } from "@/domain/shared/domain-error";
-import { Money } from "@/domain/shared/money";
 import type { AuditLogger, Clock } from "@/application/shared/ports";
-import type { DepartureBoardingForCancel, DepartureRecord, DepartureRepository } from "./ports";
+import type { CashRefundItem, PassengerRefundDetail } from "./refund-boardings";
+import { processBoardingRefunds } from "./refund-boardings";
+import { createStartNextBoarding } from "./start-next-boarding";
+import type { DepartureRecord, DepartureRepository } from "./ports";
+
+export type { PassengerRefundDetail, CashRefundItem };
 
 export interface CancelDepartureInput {
   departureId: string;
@@ -11,28 +15,15 @@ export interface CancelDepartureInput {
   actorDockId?: string | null;
 }
 
-export interface PassengerRefundDetail {
-  boardingId: string;
-  passengerId: string | null;
-  seatNumber: number;
-  channel: "QR_BALANCE" | "TICKET_OFFICE";
-  refundedAmount: string;
-  refundMethod: "WALLET" | "CASH_BOX";
-}
-
 export interface CancelDepartureResult {
   departure: DepartureRecord;
   cancelledBoardingsCount: number;
   refundedBalanceCount: number;
   totalRefundedBalance: string;
   refundsByBoarding: PassengerRefundDetail[];
-  cashRefundsReady: Array<{
-    boardingId: string;
-    saleId: string;
-    seatNumber: number;
-    amount: string;
-  }>;
+  cashRefundsReady: CashRefundItem[];
   notifiedPassengersCount: number;
+  nextBoarding: DepartureRecord | null;
 }
 
 export function createCancelDeparture(
@@ -40,6 +31,8 @@ export function createCancelDeparture(
   clock: Clock,
   auditLogger?: AuditLogger,
 ) {
+  const startNextBoarding = createStartNextBoarding(repo, clock, auditLogger);
+
   return async function cancelDeparture(
     input: CancelDepartureInput,
   ): Promise<CancelDepartureResult> {
@@ -57,13 +50,6 @@ export function createCancelDeparture(
       throw new DomainError(
         "CANCEL_REASON_REQUIRED",
         "Debes indicar un motivo obligatorio para cancelar la salida.",
-      );
-    }
-
-    if (!repo.unitOfWork) {
-      throw new DomainError(
-        "UNIT_OF_WORK_REQUIRED",
-        "La operación de cancelación requiere una transacción atómica.",
       );
     }
 
@@ -102,95 +88,36 @@ export function createCancelDeparture(
         cancelReason,
       });
 
-      const boardings: DepartureBoardingForCancel[] = await uow.listBoardingsForDeparture(
+      const boardings = await uow.listBoardingsForDeparture(tx, current.id);
+      const refundSummary = await processBoardingRefunds(
         tx,
-        current.id,
+        {
+          markBoardingCancelled: uow.markBoardingCancelled.bind(uow),
+          creditWalletRefund: uow.creditWalletRefund.bind(uow),
+          recordCashRefund: uow.recordCashRefund ? uow.recordCashRefund.bind(uow) : undefined,
+          createNotification: uow.createNotification.bind(uow),
+        },
+        {
+          boardings,
+          departureId: current.id,
+          reason: cancelReason,
+          reasonPrefix: "Reembolso por cancelación de salida",
+          notificationType: "DEPARTURE_CANCELLED",
+          notificationTitle: "Salida cancelada",
+          actorUserId: input.actorUserId,
+        },
       );
-      const activeBoardings = boardings.filter((b) => b.status === "BOARDED");
-
-      let refundedBalanceCount = 0;
-      let refundSum = Money.zero();
-      const refundsByBoarding: PassengerRefundDetail[] = [];
-      const cashRefundsReady: Array<{
-        boardingId: string;
-        saleId: string;
-        seatNumber: number;
-        amount: string;
-      }> = [];
-      const notifiedUsers = new Set<string>();
-
-      for (const boarding of activeBoardings) {
-        await uow.markBoardingCancelled(tx, {
-          boardingId: boarding.id,
-          cancelReason,
-        });
-
-        const amountMoney = Money.fromPesos(boarding.amountCharged);
-        const exactAmount = amountMoney.toDecimalString();
-
-        if (boarding.saleChannel === "QR_BALANCE" && boarding.passengerId) {
-          await uow.creditWalletRefund(tx, {
-            passengerId: boarding.passengerId,
-            boardingId: boarding.id,
-            saleId: boarding.saleId,
-            departureId: current.id,
-            amountPesos: exactAmount,
-            reason: `Reembolso por cancelación de salida: ${cancelReason}`,
-            performedById: input.actorUserId,
-          });
-          refundedBalanceCount += 1;
-          refundSum = refundSum.add(amountMoney);
-          refundsByBoarding.push({
-            boardingId: boarding.id,
-            passengerId: boarding.passengerId,
-            seatNumber: boarding.seatNumber,
-            channel: boarding.saleChannel,
-            refundedAmount: exactAmount,
-            refundMethod: "WALLET",
-          });
-        } else {
-          cashRefundsReady.push({
-            boardingId: boarding.id,
-            saleId: boarding.saleId,
-            seatNumber: boarding.seatNumber,
-            amount: exactAmount,
-          });
-          refundsByBoarding.push({
-            boardingId: boarding.id,
-            passengerId: boarding.passengerId,
-            seatNumber: boarding.seatNumber,
-            channel: boarding.saleChannel,
-            refundedAmount: exactAmount,
-            refundMethod: "CASH_BOX",
-          });
-        }
-
-        if (boarding.passengerId && !notifiedUsers.has(boarding.passengerId)) {
-          notifiedUsers.add(boarding.passengerId);
-          const refundText =
-            boarding.saleChannel === "QR_BALANCE"
-              ? `Se reembolsaron ${amountMoney.format()} a tu monedero.`
-              : `Tu boleto #${boarding.seatNumber} (${amountMoney.format()}) está listo para devolución en caja.`;
-
-          await uow.createNotification(tx, {
-            userId: boarding.passengerId,
-            type: "DEPARTURE_CANCELLED",
-            title: "Salida cancelada",
-            body: `La salida fue cancelada (${cancelReason}). ${refundText}`,
-          });
-        }
-      }
 
       return {
         departure: updatedDeparture,
-        cancelledBoardingsCount: activeBoardings.length,
-        refundedBalanceCount,
-        totalRefundedBalance: refundSum.toDecimalString(),
-        refundsByBoarding,
-        cashRefundsReady,
-        notifiedPassengersCount: notifiedUsers.size,
+        wasBoarding: current.status === "BOARDING",
+        ...refundSummary,
       };
     });
+
+    const nextBoarding = txResult.wasBoarding
+      ? await startNextBoarding(txResult.departure.originDockId, input.actorUserId)
+      : null;
 
     if (auditLogger) {
       await auditLogger.log({
@@ -206,11 +133,21 @@ export function createCancelDeparture(
           refundsByBoarding: txResult.refundsByBoarding,
           cashRefundsCount: txResult.cashRefundsReady.length,
           notifiedPassengersCount: txResult.notifiedPassengersCount,
+          nextBoardingId: nextBoarding?.id ?? null,
           cancelledAt: now.toISOString(),
         },
       });
     }
 
-    return txResult;
+    return {
+      departure: txResult.departure,
+      cancelledBoardingsCount: txResult.cancelledBoardingsCount,
+      refundedBalanceCount: txResult.refundedBalanceCount,
+      totalRefundedBalance: txResult.totalRefundedBalance,
+      refundsByBoarding: txResult.refundsByBoarding,
+      cashRefundsReady: txResult.cashRefundsReady,
+      notifiedPassengersCount: txResult.notifiedPassengersCount,
+      nextBoarding,
+    };
   };
 }

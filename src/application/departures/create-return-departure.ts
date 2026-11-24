@@ -1,7 +1,7 @@
 import { assertDepartureTransition } from "@/domain/departures/departure-state";
 import { DomainError } from "@/domain/shared/domain-error";
 import type { AuditLogger, Clock } from "@/application/shared/ports";
-import type { CreateDepartureData, DepartureRecord, DepartureRepository } from "./ports";
+import type { DepartureRecord, DepartureRepository } from "./ports";
 
 export interface CreateReturnDepartureInput {
   departureId: string;
@@ -51,28 +51,21 @@ export function createReturnDeparture(
     const now = clock.now();
     const returnOriginDockId = current.destinationDockId;
     const returnDestinationDockId = current.originDockId;
+    const uow = repo.unitOfWork;
 
-    const executeWork = async (
-      tx: unknown,
-      markFinished: (
-        t: unknown,
-        params: { departureId: string; finishedAt: Date; actorUserId: string },
-      ) => Promise<DepartureRecord>,
-      createQueuedReturn: (t: unknown, data: CreateDepartureData) => Promise<DepartureRecord>,
-      getDestinationDepartures: (dockId: string) => Promise<DepartureRecord[]>,
-    ): Promise<CreateReturnDepartureResult> => {
-      const destDepartures = await getDestinationDepartures(returnOriginDockId);
+    const result = await uow.run(async (tx) => {
+      const destDepartures = await repo.listDeparturesByDock(returnOriginDockId);
       const maxQueuePos = destDepartures
         .filter((d) => d.status === "QUEUED" && d.queuePosition !== null)
         .reduce((max, d) => Math.max(max, d.queuePosition ?? 0), 0);
 
-      const finishedDeparture = await markFinished(tx, {
+      const finishedDeparture = await uow.markDepartureFinished(tx, {
         departureId: current.id,
         finishedAt: now,
         actorUserId: input.actorUserId,
       });
 
-      const returnDeparture = await createQueuedReturn(tx, {
+      const returnDeparture = await uow.createReturnQueuedDeparture(tx, {
         vesselId: current.vesselId,
         driverId: current.driverId,
         originDockId: returnOriginDockId,
@@ -89,29 +82,7 @@ export function createReturnDeparture(
       });
 
       return { finishedDeparture, returnDeparture };
-    };
-
-    const result = repo.unitOfWork
-      ? await repo.unitOfWork.run((tx) =>
-          executeWork(
-            tx,
-            repo.unitOfWork!.markDepartureFinished.bind(repo.unitOfWork),
-            repo.unitOfWork!.createReturnQueuedDeparture.bind(repo.unitOfWork),
-            (dockId) => repo.listDeparturesByDock(dockId),
-          ),
-        )
-      : await executeWork(
-          null,
-          async (_t, params) =>
-            repo.updateDepartureStatus({
-              departureId: params.departureId,
-              fromStatus: current.status,
-              toStatus: "FINISHED",
-              queuePosition: null,
-            }),
-          (_t, data) => repo.createDeparture(data),
-          (dockId) => repo.listDeparturesByDock(dockId),
-        );
+    });
 
     if (auditLogger) {
       await auditLogger.log({
@@ -133,5 +104,3 @@ export function createReturnDeparture(
     return result;
   };
 }
-
-export const createFinishTrip = createReturnDeparture;
