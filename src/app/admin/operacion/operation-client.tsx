@@ -12,7 +12,15 @@ import {
   closeBoardingAction,
   enqueueDepartureAction,
   reorderQueueAction,
+  reportIncidentAction,
+  setExtraServiceAction,
 } from "./actions";
+
+interface BoardingTimeoutInfo {
+  overdue: boolean;
+  elapsedMinutes: number;
+  maxMinutes: number;
+}
 
 interface OperationClientProps {
   docks: DockSummary[];
@@ -22,6 +30,11 @@ interface OperationClientProps {
   boarding: DepartureRecord | null;
   queued: DepartureRecord[];
   waitlist: WaitlistEntryRecord[];
+  activeDepartures?: DepartureRecord[];
+  serviceOpen?: boolean;
+  serviceReason?: string | null;
+  extraServiceActive?: boolean;
+  boardingTimeout?: BoardingTimeoutInfo;
 }
 
 export function OperationClient({
@@ -32,11 +45,26 @@ export function OperationClient({
   boarding,
   queued,
   waitlist,
+  activeDepartures = [],
+  serviceOpen = true,
+  serviceReason = null,
+  extraServiceActive = false,
+  boardingTimeout = { overdue: false, elapsedMinutes: 0, maxMinutes: 20 },
 }: OperationClientProps) {
   const [vesselId, setVesselId] = useState(vessels[0]?.id ?? "");
   const defaultDest = docks.find((d) => d.id !== selectedDockId)?.id ?? docks[0]?.id ?? "";
   const [destinationDockId, setDestinationDockId] = useState(defaultDest);
   const [waitlistLabel, setWaitlistLabel] = useState("");
+  const [extraReason, setExtraReason] = useState("");
+  const [incidentVesselId, setIncidentVesselId] = useState(
+    boarding?.vesselId ?? vessels[0]?.id ?? "",
+  );
+  const [incidentDepartureId, setIncidentDepartureId] = useState(
+    boarding?.id ?? activeDepartures[0]?.id ?? "",
+  );
+  const [incidentType, setIncidentType] = useState("FALLA_MECANICA");
+  const [incidentDescription, setIncidentDescription] = useState("");
+  const [incidentAction, setIncidentAction] = useState<"REASSIGN" | "REFUND">("REASSIGN");
   const [feedback, setFeedback] = useState<{
     ok: boolean;
     text: string;
@@ -93,6 +121,47 @@ export function OperationClient({
     });
   }
 
+  function handleToggleExtraService(enabled: boolean) {
+    if (!extraReason.trim()) {
+      setFeedback({
+        ok: false,
+        text: "Debes indicar el motivo del servicio extraordinario.",
+      });
+      return;
+    }
+    startTransition(async () => {
+      const res = await setExtraServiceAction({
+        dockId: selectedDockId,
+        enabled,
+        reason: extraReason.trim(),
+      });
+      if (res.ok) setExtraReason("");
+      setFeedback({ ok: res.ok, text: res.message });
+    });
+  }
+
+  function handleReportIncident(e: React.FormEvent) {
+    e.preventDefault();
+    if (!incidentVesselId || !incidentType.trim() || !incidentDescription.trim()) {
+      setFeedback({
+        ok: false,
+        text: "Completa embarcación, tipo y descripción del incidente.",
+      });
+      return;
+    }
+    startTransition(async () => {
+      const res = await reportIncidentAction({
+        vesselId: incidentVesselId,
+        departureId: incidentDepartureId || null,
+        type: incidentType.trim(),
+        description: incidentDescription.trim(),
+        action: incidentAction,
+      });
+      if (res.ok) setIncidentDescription("");
+      setFeedback({ ok: res.ok, text: res.message });
+    });
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
@@ -100,6 +169,17 @@ export function OperationClient({
           <p className="text-xs font-medium text-slate-500">Muelle de operación</p>
           <p className="text-base font-semibold text-slate-900">
             {dockMap.get(selectedDockId) ?? selectedDockId}
+          </p>
+          <p className="mt-1 text-xs text-slate-600">
+            Estado de horario:{" "}
+            <span
+              className={
+                serviceOpen ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"
+              }
+            >
+              {serviceOpen ? "Servicio abierto" : "Fuera de horario / suspendido"}
+            </span>
+            {serviceReason ? ` — ${serviceReason}` : ""}
           </p>
         </div>
         {!lockDock && docks.length > 1 && (
@@ -120,6 +200,32 @@ export function OperationClient({
           </div>
         )}
       </div>
+
+      {boarding && boardingTimeout.overdue && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+        >
+          <div>
+            <p className="font-semibold">
+              Aviso de tiempo máximo de abordaje superado ({boardingTimeout.elapsedMinutes} min /{" "}
+              {boardingTimeout.maxMinutes} min máx.)
+            </p>
+            <p className="text-xs text-amber-800">
+              La salida actual lleva más tiempo abordando del configurado; puedes cerrar el abordaje
+              ahora.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => handleCloseBoarding(boarding.id)}
+            className="rounded-lg bg-amber-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-800 disabled:opacity-50"
+          >
+            Cerrar abordaje ahora
+          </button>
+        </div>
+      )}
 
       {feedback && (
         <div
@@ -164,7 +270,6 @@ export function OperationClient({
           </p>
         )}
       </section>
-
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
           <h2 className="text-lg font-semibold text-slate-900">Formar embarcación en fila</h2>
@@ -288,6 +393,7 @@ export function OperationClient({
                 <li key={entry.id} className="flex items-center justify-between py-2.5 text-sm">
                   <span className="font-medium text-slate-800">
                     {entry.label ?? entry.passengerId ?? "Pasajero"}
+                    {entry.priority > 0 ? ` (Prioridad ${entry.priority})` : ""}
                   </span>
                   <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
                     {entry.status}
@@ -296,6 +402,132 @@ export function OperationClient({
               ))
             )}
           </ul>
+        </section>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
+          <h2 className="text-lg font-semibold text-slate-900">
+            Servicio extraordinario del muelle
+          </h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Estado actual: {extraServiceActive ? "Habilitado" : "Deshabilitado"}. Requiere motivo
+            obligatorio.
+          </p>
+          <div className="mt-4 space-y-3">
+            <input
+              type="text"
+              value={extraReason}
+              onChange={(e) => setExtraReason(e.target.value)}
+              placeholder="Motivo del servicio extraordinario"
+              maxLength={300}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={isPending || !extraReason.trim()}
+                onClick={() => handleToggleExtraService(true)}
+                className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
+              >
+                Habilitar servicio extraordinario
+              </button>
+              <button
+                type="button"
+                disabled={isPending || !extraReason.trim()}
+                onClick={() => handleToggleExtraService(false)}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Quitar servicio extraordinario
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
+          <h2 className="text-lg font-semibold text-slate-900">
+            Registrar incidente de embarcación
+          </h2>
+          <form onSubmit={handleReportIncident} className="mt-4 space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-700">Embarcación</label>
+              <select
+                value={incidentVesselId}
+                onChange={(e) => setIncidentVesselId(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                {vessels.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.code} — {v.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700">
+                Salida afectada (opcional si es solo aviso)
+              </label>
+              <select
+                value={incidentDepartureId}
+                onChange={(e) => setIncidentDepartureId(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              >
+                <option value="">Sin salida afectada</option>
+                {activeDepartures.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {vesselMap.get(d.vesselId)?.code ?? d.vesselId} ({d.status})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="block text-xs font-medium text-slate-700">Tipo</label>
+                <input
+                  type="text"
+                  value={incidentType}
+                  onChange={(e) => setIncidentType(e.target.value)}
+                  maxLength={40}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700">
+                  Resolución para abordados
+                </label>
+                <select
+                  value={incidentAction}
+                  onChange={(e) => setIncidentAction(e.target.value as "REASSIGN" | "REFUND")}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  <option value="REASSIGN">Reasignar a lista de espera (prioridad)</option>
+                  <option value="REFUND">Reembolsar / devolver en caja</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700">Descripción</label>
+              <input
+                type="text"
+                value={incidentDescription}
+                onChange={(e) => setIncidentDescription(e.target.value)}
+                placeholder="Detalle del incidente"
+                maxLength={500}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isPending}
+              className="rounded-lg bg-rose-700 px-4 py-2 text-sm font-medium text-white hover:bg-rose-800 disabled:opacity-50"
+            >
+              Registrar incidente
+            </button>
+          </form>
         </section>
       </div>
     </div>

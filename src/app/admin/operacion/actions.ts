@@ -5,10 +5,14 @@ import { z } from "zod";
 import { assertRole } from "@/lib/auth/require-role";
 import { prisma } from "@/infrastructure/db/prisma";
 import { PrismaDepartureRepository } from "@/infrastructure/departures/prisma-departure-repository";
+import { PrismaScheduleIncidentRepository } from "@/infrastructure/schedule/prisma-schedule-incident-repository";
 import { createEnqueueDeparture } from "@/application/departures/enqueue-departure";
 import { createReorderQueue } from "@/application/departures/reorder-queue";
 import { createCloseBoarding } from "@/application/departures/close-boarding";
 import { createAddToWaitlist } from "@/application/departures/add-to-waitlist";
+import { createSetExtraService } from "@/application/schedule/set-extra-service";
+import { createReportIncident } from "@/application/incidents/report-incident";
+import type { AuditLogger } from "@/application/shared/ports";
 import { DomainError } from "@/domain/shared/domain-error";
 
 export interface OperationActionState {
@@ -18,6 +22,28 @@ export interface OperationActionState {
 
 const systemClock = {
   now: () => new Date(),
+};
+
+const prismaAuditLogger: AuditLogger = {
+  log: async (entry) => {
+    const client = prisma as unknown as {
+      auditLog?: {
+        create: (args: { data: Record<string, unknown> }) => Promise<unknown>;
+      };
+    };
+    if (client.auditLog?.create) {
+      await client.auditLog.create({
+        data: {
+          userId: entry.userId,
+          deviceId: entry.deviceId ?? null,
+          action: entry.action,
+          entity: entry.entity,
+          entityId: entry.entityId ?? null,
+          details: entry.details ?? {},
+        },
+      });
+    }
+  },
 };
 
 const enqueueSchema = z.object({
@@ -39,6 +65,20 @@ const waitlistSchema = z.object({
   dockId: z.string().uuid(),
   passengerId: z.string().uuid().optional().nullable(),
   label: z.string().trim().max(80).optional().nullable(),
+});
+
+const extraServiceSchema = z.object({
+  dockId: z.string().uuid(),
+  enabled: z.boolean(),
+  reason: z.string().trim().min(1, "El motivo es obligatorio.").max(300),
+});
+
+const incidentSchema = z.object({
+  vesselId: z.string().uuid(),
+  departureId: z.string().uuid().optional().nullable(),
+  type: z.string().trim().min(1, "El tipo es obligatorio.").max(40),
+  description: z.string().trim().min(1, "La descripción es obligatoria.").max(500),
+  action: z.enum(["REASSIGN", "REFUND"]),
 });
 
 function formatError(err: unknown): string {
@@ -144,6 +184,65 @@ export async function addToWaitlistAction(
     });
     revalidatePath("/admin/operacion");
     return { ok: true, message: "Registro agregado a la lista de espera." };
+  } catch (err) {
+    return { ok: false, message: formatError(err) };
+  }
+}
+
+export async function setExtraServiceAction(
+  input: z.infer<typeof extraServiceSchema>,
+): Promise<OperationActionState> {
+  const user = await assertRole("ADMIN");
+  try {
+    const parsed = extraServiceSchema.parse(input);
+    const actorDockId = await getUserDockId(user.id);
+    const repo = new PrismaScheduleIncidentRepository(prisma);
+    const setExtra = createSetExtraService(repo, systemClock, prismaAuditLogger);
+    const res = await setExtra({
+      dockId: parsed.dockId,
+      enabled: parsed.enabled,
+      reason: parsed.reason,
+      actorUserId: user.id,
+      actorDockId,
+    });
+    revalidatePath("/admin/operacion");
+    return {
+      ok: true,
+      message: res.enabled
+        ? "Servicio extraordinario habilitado."
+        : "Servicio extraordinario deshabilitado.",
+    };
+  } catch (err) {
+    return { ok: false, message: formatError(err) };
+  }
+}
+
+export async function reportIncidentAction(
+  input: z.infer<typeof incidentSchema>,
+): Promise<OperationActionState> {
+  const user = await assertRole("ADMIN");
+  try {
+    const parsed = incidentSchema.parse(input);
+    const actorDockId = await getUserDockId(user.id);
+    const repo = new PrismaScheduleIncidentRepository(prisma);
+    const report = createReportIncident(repo, systemClock, prismaAuditLogger);
+    const res = await report({
+      vesselId: parsed.vesselId,
+      departureId: parsed.departureId || null,
+      type: parsed.type,
+      description: parsed.description,
+      action: parsed.action,
+      actorUserId: user.id,
+      actorDockId,
+    });
+    revalidatePath("/admin/operacion");
+    return {
+      ok: true,
+      message:
+        parsed.action === "REASSIGN"
+          ? `Incidente registrado. Abordajes reasignados a lista de espera prioritaria: ${res.reassignedCount}.`
+          : `Incidente registrado. Reembolsos a monedero: ${res.refundedBalanceCount} ($${res.totalRefundedBalance} MXN), efectivo en caja: ${res.cashRefundsReadyCount}.`,
+    };
   } catch (err) {
     return { ok: false, message: formatError(err) };
   }

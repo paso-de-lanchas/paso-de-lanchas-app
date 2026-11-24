@@ -1,8 +1,8 @@
 /**
  * Datos de ejemplo para desarrollo local: `npm run db:seed`.
- * Se puede ejecutar varias veces (usa upsert). NUNCA pongas aquí datos reales.
+ * Se puede ejecutar varias veces (usa upsert). NUNCA pongas aquÃ­ datos reales.
  *
- * Cuentas de prueba (todas con la contraseña de SEED_PASSWORD):
+ * Cuentas de prueba (todas con la contraseÃ±a de SEED_PASSWORD):
  *   superadmin@pasolanchas.test   Superadministrador
  *   admin.coa@pasolanchas.test    Administrador del muelle Coatzacoalcos
  *   admin.val@pasolanchas.test    Administrador del muelle Villa Allende
@@ -42,7 +42,7 @@ async function main() {
     create: { code: "VAL", name: "Villa Allende", latitude: "18.143500", longitude: "-94.444300" },
   });
 
-  // --- Horario de servicio (06:00 a 22:00 todos los días, a confirmar)
+  // --- Horario de servicio (06:00 a 22:00 todos los dÃ­as, a confirmar)
   for (const dock of [coa, val]) {
     for (let weekday = 0; weekday <= 6; weekday++) {
       await prisma.serviceHour.upsert({
@@ -58,8 +58,8 @@ async function main() {
     }
   }
 
-  // --- Tipos de vehículo (transbordador)
-  const vehicleTypeNames = ["Automóvil", "Motocicleta", "Camioneta", "Bicicleta"];
+  // --- Tipos de vehÃ­culo (transbordador)
+  const vehicleTypeNames = ["AutomÃ³vil", "Motocicleta", "Camioneta", "Bicicleta"];
   const vehicleTypes = new Map<string, number>();
   for (const name of vehicleTypeNames) {
     const vt = await prisma.vehicleType.upsert({ where: { name }, update: {}, create: { name } });
@@ -167,7 +167,7 @@ async function main() {
     const vessel = await prisma.vessel.upsert({ where: { code: v.code }, update: {}, create: v });
     if (v.kind === "FERRY") {
       for (const [name, capacity] of [
-        ["Automóvil", 12],
+        ["AutomÃ³vil", 12],
         ["Motocicleta", 10],
         ["Camioneta", 6],
       ] as const) {
@@ -189,7 +189,7 @@ async function main() {
     }
   }
 
-  // --- Tarifas vigentes (de ejemplo; transbordador según prensa: $15 auto, $5 moto, $1 peatón)
+  // --- Tarifas vigentes (de ejemplo; transbordador segÃºn prensa: $15 auto, $5 moto, $1 peatÃ³n)
   if ((await prisma.fare.count()) === 0) {
     await prisma.fare.createMany({
       data: [
@@ -200,7 +200,7 @@ async function main() {
         {
           vesselKind: "FERRY",
           category: "VEHICLE",
-          vehicleTypeId: vehicleTypes.get("Automóvil"),
+          vehicleTypeId: vehicleTypes.get("AutomÃ³vil"),
           amount: "15.00",
           createdById: superadmin.id,
         },
@@ -256,3 +256,13 @@ main()
     process.exitCode = 1;
   })
   .finally(() => prisma.$disconnect());
+
+// PENDIENTE: confirmar en campo con operación de muelles
+await prisma.systemSetting.upsert({
+  where: { key: "max_boarding_minutes" },
+  update: {},
+  create: {
+    key: "max_boarding_minutes",
+    value: { minutes: 20 },
+  },
+});
