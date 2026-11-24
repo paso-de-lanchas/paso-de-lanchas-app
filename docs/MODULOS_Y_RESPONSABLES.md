@@ -147,8 +147,8 @@ que las páginas nuevas dentro de ellas pueden llamar a `requireRole` directamen
 
 **Administrador y superadministrador (issue #9):** solo entran desde una **computadora autorizada**. La primera vez que
 entras con `admin.coa`, `admin.val` o `superadmin` desde tu navegador, el login dice que la computadora no está
-autorizada y crea la solicitud. Mientras el superadministrador no tenga su pantalla (sprint 3), apruébala en tu base local
-con `npm run dev:aprobar-computadoras` y vuelve a entrar. Además, el personal se bloquea 15 minutos tras 5 contraseñas
+autorizada y crea la solicitud. Apruébala entrando como `superadmin` a `/superadmin/computadoras` (issue #42) o, más
+rápido, con `npm run dev:aprobar-computadoras` (solo en tu base local) y vuelve a entrar. Además, el personal se bloquea 15 minutos tras 5 contraseñas
 incorrectas seguidas, y la sesión de admin/superadmin se cierra tras 30 minutos sin actividad.
 
 **Contraseña temporal (issue #8):** si una cuenta tiene `must_change_password = true` (la que el superadmin crea o

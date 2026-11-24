@@ -283,6 +283,7 @@ model AuthorizedDevice {
   deviceTokenHash String       @unique @map("device_token_hash")
   status          DeviceStatus @default(PENDING)
   requestedById   String       @map("requested_by") @db.Uuid
+  requestedAt     DateTime     @default(now()) @map("requested_at") @db.Timestamptz(6)
   approvedById    String?      @map("approved_by") @db.Uuid
   approvedAt      DateTime?    @map("approved_at") @db.Timestamptz(6)
   lastSeenAt      DateTime?    @map("last_seen_at") @db.Timestamptz(6)

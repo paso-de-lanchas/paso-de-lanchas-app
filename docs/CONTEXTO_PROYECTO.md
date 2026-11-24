@@ -214,3 +214,14 @@ Este proyecto es **ingeniería de software**: todo código debe:
   recuperación pendientes). Los cambios de estado son condicionales para que dos superadmins no se pisen.
 - Nunca se listan ni modifican superadministradores (incluido uno mismo) ni pasajeros: se tratan como si no existieran.
   Todo queda en la bitácora con quién lo hizo; la contraseña nunca se registra.
+
+### 2026-11-24 — Computadoras del muelle (#42)
+- `/superadmin/computadoras` con pestañas Pendientes / Aprobadas / Revocadas: quién la pidió, cuándo (nueva columna
+  `authorized_devices.requested_at`), muelle, quién la aprobó y último uso (`last_seen_at`).
+- Aprobar solo desde `PENDING`, con nombre y muelle (por defecto el del administrador que la pidió). La computadora de
+  un administrador no puede quedar «de oficina» (sin muelle), porque el login la rechazaría; la del superadministrador sí.
+- Revocar (o rechazar una solicitud) desde `PENDING` o `APPROVED`: borra en la misma transacción las sesiones abiertas
+  desde ella (además, `getCurrentUser` ya rechazaba sesiones de computadoras no aprobadas). Se puede renombrar mientras
+  no esté revocada. Todo condicional y en la bitácora.
+- `npm run dev:aprobar-computadoras` queda solo para desarrollo; acepta un correo para aprobar solo las de esa cuenta
+  (lo usan las pruebas de navegador, que corren en paralelo).

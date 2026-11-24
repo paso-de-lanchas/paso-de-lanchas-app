@@ -15,6 +15,11 @@ const SECTIONS = [
     title: "Personal",
     description: "Cuentas de administradores y choferes (RF-116 a RF-119)",
   },
+  {
+    href: "/superadmin/computadoras",
+    title: "Computadoras",
+    description: "Aprobar o revocar las computadoras de cada muelle (RF-120, RF-121)",
+  },
 ];
 
 const PENDING = [{ name: "Auditoría", requirements: "RF-122 a RF-124" }];
