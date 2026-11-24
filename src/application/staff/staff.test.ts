@@ -13,8 +13,8 @@ const actor = { id: "00000000-0000-4000-8000-0000000000aa" };
 const APP_URL = "http://localhost:3000";
 
 function setup(users: MemoryStaffUser[] = []) {
-  const staff = memoryStaff(users);
   const audit = memoryAudit();
+  const staff = memoryStaff(users, audit);
   const mailer = memoryMailer();
   const clock = fixedClock("2026-11-24T12:00:00Z");
   let counter = 0;
@@ -153,6 +153,18 @@ describe("desactivar y reactivar (RF-118)", () => {
     driver = memoryStaffUser({ role: "DRIVER" });
   });
 
+  it.each(["", "BORRAR", null, undefined])(
+    "una acción desconocida (%s) se rechaza sin cambiar nada",
+    async (change) => {
+      const s = setup([driver]);
+      await expect(s.setStatus(actor, driver.id, change)).rejects.toMatchObject({
+        code: "INVALID_STATUS_CHANGE",
+      });
+      expect(driver).toMatchObject({ status: "ACTIVE", sessions: 2 });
+      expect(s.audit.entries).toHaveLength(0);
+    },
+  );
+
   it("desactivar cierra sus sesiones y queda en la bitácora", async () => {
     const s = setup([driver]);
     await s.setStatus(actor, driver.id, "DEACTIVATE");
@@ -178,11 +190,12 @@ describe("desactivar y reactivar (RF-118)", () => {
   it("si otra petición cambió el estado primero, avisa", async () => {
     const s = setup([driver]);
     const original = s.staff.setStatus;
-    s.staff.setStatus = async (id, from, to) => {
+    s.staff.setStatus = async (id, from, to, entry) => {
       driver.status = "INACTIVE";
-      return original(id, from, to);
+      return original(id, from, to, entry);
     };
     await expect(s.setStatus(actor, driver.id, "DEACTIVATE")).rejects.toThrow("cambió mientras");
+    expect(s.audit.entries).toHaveLength(0);
   });
 
   it("no puede tocar a un superadministrador (ni a sí mismo) ni a un pasajero", async () => {

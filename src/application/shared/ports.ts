@@ -14,14 +14,23 @@ export interface Clock {
 
 export const systemClock: Clock = { now: () => new Date() };
 
+/** Una acción para la bitácora de auditoría (RF-122 a RF-124). */
+export interface AuditEntry {
+  userId: string | null;
+  deviceId?: string | null;
+  action: string;
+  entity: string;
+  entityId?: string | null;
+  details?: Record<string, unknown>;
+}
+
 /** Registra una acción en la bitácora de auditoría (RF-122 a RF-124). */
 export interface AuditLogger {
-  log(entry: {
-    userId: string | null;
-    deviceId?: string | null;
-    action: string;
-    entity: string;
-    entityId?: string | null;
-    details?: Record<string, unknown>;
-  }): Promise<void>;
+  log(entry: AuditEntry): Promise<void>;
 }
+
+/**
+ * Evento de bitácora que un repositorio guarda en la misma transacción que el cambio, para
+ * que nunca quede un cambio sin registro. El repositorio completa `entity` y `entityId`.
+ */
+export type ChangeAudit = Pick<AuditEntry, "userId" | "action" | "details">;

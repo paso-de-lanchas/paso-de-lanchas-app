@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { normalizeMexicanPhone } from "@/domain/auth/phone";
-import { ACCOUNT_STATUSES, STAFF_ROLES } from "@/domain/staff/staff-rules";
+import { ACCOUNT_STATUSES, STAFF_ROLES, STAFF_STATUS_CHANGES } from "@/domain/staff/staff-rules";
 
 import { emailSchema } from "../auth/password-schema";
 
@@ -56,3 +56,6 @@ export const staffFilterSchema = z.object({
 });
 
 export const staffIdSchema = z.uuid();
+
+/** Desactivar o reactivar; cualquier otro valor (vacío o manipulado) se rechaza. */
+export const staffStatusChangeSchema = z.enum(STAFF_STATUS_CHANGES);

@@ -2,7 +2,12 @@ import type { Mailer, PasswordHasher } from "../auth/ports";
 import type { AuditLogger } from "../shared/ports";
 import { staffPasswordResetEmail } from "./emails";
 import type { StaffRepository } from "./ports";
-import { findStaffOrFail, sendWithoutFailing, type StaffActor } from "./staff-shared";
+import {
+  findStaffOrFail,
+  sendWithoutFailing,
+  STAFF_NOT_FOUND,
+  type StaffActor,
+} from "./staff-shared";
 
 export interface ResetStaffPasswordDeps {
   staff: StaffRepository;
@@ -30,13 +35,12 @@ export function createResetStaffPassword(deps: ResetStaffPasswordDeps) {
     const account = await findStaffOrFail(deps.staff, staffId);
     const temporaryPassword = deps.generatePassword();
 
-    await deps.staff.resetPassword(account.id, await deps.hasher.hash(temporaryPassword));
-    await deps.audit.log({
-      userId: actor.id,
-      action: "STAFF_PASSWORD_RESET",
-      entity: "user",
-      entityId: account.id,
-    });
+    const reset = await deps.staff.resetPassword(
+      account.id,
+      await deps.hasher.hash(temporaryPassword),
+      { userId: actor.id, action: "STAFF_PASSWORD_RESET" },
+    );
+    if (!reset) throw STAFF_NOT_FOUND;
     const emailSent = await sendWithoutFailing(
       deps.mailer,
       deps.audit,

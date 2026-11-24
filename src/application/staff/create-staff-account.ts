@@ -41,26 +41,23 @@ export function createCreateStaffAccount(deps: CreateStaffAccountDeps) {
     }
 
     const temporaryPassword = deps.generatePassword();
-    const created = await deps.staff.create({
-      email: data.email,
-      fullName: data.fullName,
-      phone: data.phone,
-      role: data.role,
-      dockId,
-      passwordHash: await deps.hasher.hash(temporaryPassword),
-      createdAt: deps.clock.now(),
-    });
+    // La bitácora se guarda junto con la cuenta y nunca lleva la contraseña temporal.
+    const created = await deps.staff.create(
+      {
+        email: data.email,
+        fullName: data.fullName,
+        phone: data.phone,
+        role: data.role,
+        dockId,
+        passwordHash: await deps.hasher.hash(temporaryPassword),
+        createdAt: deps.clock.now(),
+      },
+      { userId: actor.id, action: "STAFF_ACCOUNT_CREATED", details: { role: data.role, dockId } },
+    );
     if (!created) {
       throw new InputError<NewStaffField>({ email: "Ya existe una cuenta con ese correo." });
     }
 
-    await deps.audit.log({
-      userId: actor.id,
-      action: "STAFF_ACCOUNT_CREATED",
-      entity: "user",
-      entityId: created.id,
-      details: { role: data.role, dockId },
-    });
     const emailSent = await sendWithoutFailing(
       deps.mailer,
       deps.audit,

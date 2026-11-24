@@ -23,7 +23,8 @@ export function staffDockFor(role: StaffRole, dockId: string | null): string | n
   return dockId;
 }
 
-export type StaffStatusChange = "DEACTIVATE" | "REACTIVATE";
+export const STAFF_STATUS_CHANGES = ["DEACTIVATE", "REACTIVATE"] as const;
+export type StaffStatusChange = (typeof STAFF_STATUS_CHANGES)[number];
 
 /** Desde qué estados se puede desactivar o reactivar una cuenta del personal. */
 const ALLOWED_FROM: Record<StaffStatusChange, readonly AccountStatusCode[]> = {

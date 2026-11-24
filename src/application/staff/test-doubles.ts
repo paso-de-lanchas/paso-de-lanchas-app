@@ -5,6 +5,7 @@
 import type { Role } from "@/domain/auth/roles";
 import { isStaffRole } from "@/domain/staff/staff-rules";
 
+import type { AuditLogger, ChangeAudit } from "../shared/ports";
 import type { DockOption, StaffAccount, StaffRepository } from "./ports";
 
 export interface MemoryStaffUser extends Omit<StaffAccount, "role"> {
@@ -60,10 +61,19 @@ function toAccount(user: MemoryStaffUser): StaffAccount | null {
   };
 }
 
-export function memoryStaff(users: MemoryStaffUser[] = []): StaffRepository & {
+/**
+ * `audit` recibe los eventos que el repositorio real guarda en la misma transacción que el
+ * cambio (solo cuando el cambio sí se aplica).
+ */
+export function memoryStaff(
+  users: MemoryStaffUser[] = [],
+  audit?: AuditLogger,
+): StaffRepository & {
   users: MemoryStaffUser[];
 } {
   const byId = (id: string) => users.find((u) => u.id === id);
+  const record = (id: string, entry: ChangeAudit) =>
+    audit?.log({ ...entry, entity: "user", entityId: id });
   return {
     users,
     list: async (filter) =>
@@ -81,7 +91,7 @@ export function memoryStaff(users: MemoryStaffUser[] = []): StaffRepository & {
     },
     listDocks: async () => DOCKS,
     dockExists: async (id) => DOCKS.some((d) => d.id === id),
-    create: async (account) => {
+    create: async (account, entry) => {
       if (users.some((u) => u.email === account.email)) return null;
       const user = memoryStaffUser({
         ...account,
@@ -91,22 +101,29 @@ export function memoryStaff(users: MemoryStaffUser[] = []): StaffRepository & {
         resetTokens: 0,
       });
       users.push(user);
+      await record(user.id, entry);
       return { id: user.id };
     },
-    setStatus: async (id, from, to) => {
+    setStatus: async (id, from, to, entry) => {
       const user = byId(id);
       if (!user || !from.includes(user.status)) return false;
       user.status = to;
       if (to === "INACTIVE") user.sessions = 0;
+      await record(id, entry);
       return true;
     },
-    unlock: async (id) => {
-      const user = byId(id)!;
+    unlock: async (id, entry) => {
+      const user = byId(id);
+      if (!user) return false;
       user.failedLoginAttempts = 0;
       user.lockedUntil = null;
+      await record(id, entry);
+      return true;
     },
-    resetPassword: async (id, passwordHash) => {
-      const user = byId(id)!;
+    resetPassword: async (id, passwordHash, entry) => {
+      const user = byId(id);
+      if (!user) return false;
+      await record(id, entry);
       Object.assign(user, {
         passwordHash,
         mustChangePassword: true,
@@ -115,6 +132,7 @@ export function memoryStaff(users: MemoryStaffUser[] = []): StaffRepository & {
         sessions: 0,
         resetTokens: 0,
       });
+      return true;
     },
   };
 }

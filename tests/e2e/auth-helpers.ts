@@ -25,6 +25,7 @@ export async function login(page: Page, email: string, password = SEED_PASSWORD)
 export async function loginFromAuthorizedComputer(page: Page, email: string) {
   await login(page, email);
   await expect(page.getByText(DEVICE_PENDING)).toBeVisible();
-  execSync("npm run dev:aprobar-computadoras", { stdio: "ignore" });
+  // Solo las de esta cuenta: las pruebas corren en paralelo y otra puede tener una pendiente.
+  execSync(`npm run dev:aprobar-computadoras -- ${email}`, { stdio: "ignore" });
   await login(page, email);
 }

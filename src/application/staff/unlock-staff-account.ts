@@ -1,13 +1,12 @@
 import { hasLoginLockout } from "@/domain/staff/staff-rules";
 import { DomainError } from "@/domain/shared/domain-error";
 
-import type { AuditLogger, Clock } from "../shared/ports";
+import type { Clock } from "../shared/ports";
 import type { StaffRepository } from "./ports";
-import { findStaffOrFail, type StaffActor } from "./staff-shared";
+import { findStaffOrFail, STAFF_NOT_FOUND, type StaffActor } from "./staff-shared";
 
 export interface UnlockStaffAccountDeps {
   staff: StaffRepository;
-  audit: AuditLogger;
   clock: Clock;
 }
 
@@ -19,13 +18,11 @@ export function createUnlockStaffAccount(deps: UnlockStaffAccountDeps) {
       throw new DomainError("NOT_LOCKED", "La cuenta no tiene intentos fallidos ni bloqueo.");
     }
 
-    await deps.staff.unlock(account.id);
-    await deps.audit.log({
+    const unlocked = await deps.staff.unlock(account.id, {
       userId: actor.id,
       action: "STAFF_ACCOUNT_UNLOCKED",
-      entity: "user",
-      entityId: account.id,
       details: { failedLoginAttempts: account.failedLoginAttempts },
     });
+    if (!unlocked) throw STAFF_NOT_FOUND;
   };
 }
