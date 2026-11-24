@@ -203,3 +203,14 @@ Este proyecto es **ingeniería de software**: todo código debe:
 - D26: equipo `desarrollo` con escritura; `develop` exige PR, CI en verde y la aprobación de Omar (`.github/CODEOWNERS`).
   Ahora también se puede completar el PR de `develop` → `main` (2 aprobaciones de personas con escritura).
 - Pendiente: actualizar el documento Word 02 «Flujo de trabajo en GitHub» (v1.2).
+
+### 2026-11-24 — Cuentas del personal (#41)
+- El superadministrador crea en `/superadmin/personal/nuevo` cuentas de **administrador** (con muelle obligatorio) y
+  **chofer** (sin muelle). Nacen `ACTIVE`, con el correo ya confirmado y `must_change_password`. La contraseña temporal
+  (12 caracteres sin 0/O/1/l/I, con `crypto.randomInt`) se muestra **una sola vez** y se manda por correo; si el correo
+  falla, la cuenta queda creada y la pantalla lo avisa.
+- En el detalle de cada cuenta: desactivar (borra sus sesiones en la misma transacción), reactivar, desbloquear
+  (intentos en 0 y sin `locked_until`) y restablecer la contraseña (temporal nueva, cierra sesiones e invalida enlaces de
+  recuperación pendientes). Los cambios de estado son condicionales para que dos superadmins no se pisen.
+- Nunca se listan ni modifican superadministradores (incluido uno mismo) ni pasajeros: se tratan como si no existieran.
+  Todo queda en la bitácora con quién lo hizo; la contraseña nunca se registra.

@@ -154,7 +154,12 @@ incorrectas seguidas, y la sesión de admin/superadmin se cierra tras 30 minutos
 **Contraseña temporal (issue #8):** si una cuenta tiene `must_change_password = true` (la que el superadmin crea o
 restablece), `requireRole` la manda a `/cuenta/cambiar-contrasena` y `assertRole` / `requireApiRole` responden 403
 hasta que la cambie. No necesitas hacer nada en tus módulos: ya lo hacen esas funciones. Las pruebas de navegador de
-contraseñas usan cuentas `e2e.*@pasolanchas.test` que se preparan solas al correr `npm run test:e2e`.
+contraseñas usan cuentas `e2e.*@pasolanchas.test` que se preparan solas al correr `npm run test:e2e`. Para probarlo a
+mano entra con `chofer.temporal@pasolanchas.test` (seed).
+
+**Cuentas del personal (issue #41):** con `superadmin` entra a `/superadmin/personal` para crear administradores o
+choferes de prueba; la contraseña temporal se muestra una vez (y llega a Mailpit, `http://localhost:8025`). En las
+pruebas de Playwright usa `login` y `loginFromAuthorizedComputer` de `tests/e2e/auth-helpers.ts`.
 
 ## 5. Cómo empieza cada quien (su primer día)
 

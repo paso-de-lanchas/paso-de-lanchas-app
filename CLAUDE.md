@@ -65,7 +65,9 @@ repositorio:
   **Registro de pasajero (#6):** `/registro` y `/verificar-correo` con enlace de un solo uso por correo (Mailpit en
   local). **Contraseñas (#8):** `/recuperar` (enlace de 30 min, un solo uso, cierra todas las sesiones) y
   `/cuenta/cambiar-contrasena` (pide la actual; la contraseña temporal del personal obliga a cambiarla antes de seguir).
-  Las demás pantallas por rol siguen temporales.
+  **Cuentas del personal (#41):** `/superadmin/personal` crea administradores (con muelle) y choferes con contraseña
+  temporal que se ve una sola vez (y se manda por correo); desactiva (cierra sesiones), reactiva, desbloquea y
+  restablece la contraseña. Las demás pantallas por rol siguen temporales.
 - **Permisos en GitHub (2026-11-23, D26):** equipo `desarrollo` con permiso de escritura (los 5 suben sus ramas al
   repo); en `develop` todo entra por PR con la CI en verde y **solo Omar aprueba y fusiona** (`.github/CODEOWNERS`).
 
@@ -164,6 +166,7 @@ npm run format             Prettier
 | 2026-11-23 | Omar (con Claude) | Recuperar y cambiar contraseña (#8): enlace de 30 min de un solo uso (máx. 3 cada 30 min), cierre de sesiones, contraseña temporal obligatoria de cambiar (`requireRole`/`assertRole`), aviso por correo del cambio, `InputError` compartido, cuentas de prueba e2e con `globalSetup` |
 | 2026-11-22 | José | Issue #16 (revisión PR #23): eliminar `userId` oculto del formulario y obtener sesión en servidor con `requireRole`/`assertRole` |
 | 2026-11-23 | Omar (con Claude) | Permisos en GitHub (D26): equipo `desarrollo` con escritura, `.github/CODEOWNERS`, reglas de `develop` (PR obligatorio, CI en verde, aprobación de Omar); guía de contribución actualizada |
+| 2026-11-24 | Omar (con Claude) | Cuentas del personal (#41): alta de admin/chofer con contraseña temporal de 12 caracteres (`crypto.randomInt`), desactivar con cierre de sesiones, reactivar, desbloquear y restablecer; nunca superadmins ni pasajeros; bitácora; `src/lib/mailer.ts` compartido; chofer `chofer.temporal` en el seed; ayudas e2e en `tests/e2e/auth-helpers.ts` |
 
 ## Registro de errores y soluciones
 
