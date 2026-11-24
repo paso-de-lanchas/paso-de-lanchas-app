@@ -225,7 +225,7 @@ describe("departures use cases", () => {
     expect(res.nextBoarding?.status).toBe("BOARDING");
   });
 
-  it("reordena la fila y agrega entradas a la lista de espera sin cobro", async () => {
+  it("reordena la fila y agrega entradas a la lista de espera sin cobro cuando no hay abordando", async () => {
     const repo = createFakeRepo({
       departures: [
         makeDeparture({ id: "dep-a", status: "QUEUED", queuePosition: 1 }),
@@ -251,5 +251,20 @@ describe("departures use cases", () => {
     });
     expect(entry.label).toBe("Juan Pérez");
     expect(entry.status).toBe("WAITING");
+  });
+
+  it("impide registrar en lista de espera si ya hay una embarcación abordando", async () => {
+    const repoConAbordaje = createFakeRepo({
+      departures: [makeDeparture({ id: "dep-1", status: "BOARDING", queuePosition: null })],
+    });
+    const addWaitlist = createAddToWaitlist(repoConAbordaje, fixedClock);
+
+    await expect(
+      addWaitlist({
+        dockId: "dock-coa",
+        label: "Ana López",
+        actorUserId: "admin-1",
+      }),
+    ).rejects.toThrow(DomainError);
   });
 });

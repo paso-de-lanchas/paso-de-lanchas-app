@@ -43,6 +43,14 @@ export function createAddToWaitlist(
       throw new DomainError("DOCK_NOT_FOUND", "No se encontró el muelle indicado.");
     }
 
+    const activeBoarding = await repo.findActiveBoardingByDock(dockId);
+    if (activeBoarding) {
+      throw new DomainError(
+        "BOARDING_ACTIVE_WAITLIST_NOT_ALLOWED",
+        "Solo se puede registrar en lista de espera cuando no hay embarcación abordando.",
+      );
+    }
+
     const created = await repo.createWaitlistEntry({
       dockId,
       passengerId,
