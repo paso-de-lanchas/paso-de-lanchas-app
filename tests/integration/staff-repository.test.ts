@@ -19,6 +19,10 @@ describe.skipIf(!prisma)("repositorio del personal", () => {
   let dockId = "";
   let superadminId = "";
   const created: string[] = [];
+  // Actor nulo: la bitácora es de solo inserción y borrar a un usuario con eventos fallaría.
+  const audit = (action: string) => ({ userId: null, action });
+  const auditCount = (entityId: string, action: string) =>
+    db.auditLog.count({ where: { entity: "user", entityId, action } });
 
   beforeAll(async () => {
     const dock = await db.dock.create({
@@ -60,9 +64,10 @@ describe.skipIf(!prisma)("repositorio del personal", () => {
       passwordHash: "hash-temporal",
       createdAt: new Date(),
     };
-    const result = await repo.create(data);
+    const result = await repo.create(data, audit("STAFF_ACCOUNT_CREATED"));
     expect(result).not.toBeNull();
     created.push(result!.id);
+    expect(await auditCount(result!.id, "STAFF_ACCOUNT_CREATED")).toBe(1);
 
     const account = await repo.findStaff(result!.id);
     expect(account).toMatchObject({
@@ -72,17 +77,22 @@ describe.skipIf(!prisma)("repositorio del personal", () => {
       dockName: `Muelle ${tag}`,
       mustChangePassword: true,
     });
-    expect(await repo.create({ ...data, fullName: "Otro" })).toBeNull();
+    expect(
+      await repo.create({ ...data, fullName: "Otro" }, audit("STAFF_ACCOUNT_CREATED")),
+    ).toBeNull();
     expect(await repo.dockExists(dockId)).toBe(true);
   });
 
   it("nunca devuelve ni modifica a un superadministrador", async () => {
     expect(await repo.findStaff(superadminId)).toBeNull();
     expect((await repo.list({})).some((a) => a.id === superadminId)).toBe(false);
-    expect(await repo.setStatus(superadminId, ["ACTIVE"], "INACTIVE")).toBe(false);
-    await repo.resetPassword(superadminId, "otro");
+    expect(await repo.setStatus(superadminId, ["ACTIVE"], "INACTIVE", audit("X"))).toBe(false);
+    expect(await repo.resetPassword(superadminId, "otro", audit("X"))).toBe(false);
+    expect(await repo.unlock(superadminId, audit("X"))).toBe(false);
     const superadmin = await db.user.findUniqueOrThrow({ where: { id: superadminId } });
     expect(superadmin).toMatchObject({ status: "ACTIVE", passwordHash: "x" });
+    // Si no cambió nada, tampoco queda nada en la bitácora.
+    expect(await db.auditLog.count({ where: { entity: "user", entityId: superadminId } })).toBe(0);
   });
 
   it("desactivar borra sus sesiones y solo cambia desde los estados permitidos", async () => {
@@ -103,18 +113,25 @@ describe.skipIf(!prisma)("repositorio del personal", () => {
     });
     created.push(driver.id);
 
-    expect(await repo.setStatus(driver.id, ["INACTIVE"], "ACTIVE")).toBe(false);
-    expect(await repo.setStatus(driver.id, ["ACTIVE", "BLOCKED"], "INACTIVE")).toBe(true);
+    expect(await repo.setStatus(driver.id, ["INACTIVE"], "ACTIVE", audit("REACTIVATED"))).toBe(
+      false,
+    );
+    expect(
+      await repo.setStatus(driver.id, ["ACTIVE", "BLOCKED"], "INACTIVE", audit("DEACTIVATED")),
+    ).toBe(true);
+    expect(await auditCount(driver.id, "REACTIVATED")).toBe(0);
+    expect(await auditCount(driver.id, "DEACTIVATED")).toBe(1);
     expect(await db.session.count({ where: { userId: driver.id } })).toBe(0);
     expect((await repo.list({ role: "DRIVER", status: "INACTIVE" })).map((a) => a.id)).toContain(
       driver.id,
     );
 
-    await repo.unlock(driver.id);
+    expect(await repo.unlock(driver.id, audit("UNLOCKED"))).toBe(true);
     expect(await repo.findStaff(driver.id)).toMatchObject({
       failedLoginAttempts: 0,
       lockedUntil: null,
     });
+    expect(await auditCount(driver.id, "UNLOCKED")).toBe(1);
   });
 
   it("restablecer guarda la temporal, obliga a cambiarla y cierra sesiones y enlaces", async () => {
@@ -124,7 +141,8 @@ describe.skipIf(!prisma)("repositorio del personal", () => {
     });
     await db.user.update({ where: { id: driverId }, data: { failedLoginAttempts: 2 } });
 
-    await repo.resetPassword(driverId, "hash-nueva");
+    expect(await repo.resetPassword(driverId, "hash-nueva", audit("RESET"))).toBe(true);
+    expect(await auditCount(driverId, "RESET")).toBe(1);
     const driver = await db.user.findUniqueOrThrow({ where: { id: driverId } });
     expect(driver).toMatchObject({
       passwordHash: "hash-nueva",
@@ -134,5 +152,32 @@ describe.skipIf(!prisma)("repositorio del personal", () => {
     });
     expect(await db.session.count({ where: { userId: driverId } })).toBe(0);
     expect(await db.authToken.count({ where: { userId: driverId, usedAt: null } })).toBe(0);
+  });
+
+  it("si la bitácora falla, el cambio tampoco se aplica (misma transacción)", async () => {
+    const driverId = created[1];
+    // Un actor que no existe hace fallar el INSERT en audit_logs (llave foránea).
+    const broken = { userId: "00000000-0000-4000-8000-00000000dead", action: "BROKEN" };
+    await expect(repo.resetPassword(driverId, "hash-sin-bitacora", broken)).rejects.toThrow();
+    await expect(repo.setStatus(driverId, ["INACTIVE"], "ACTIVE", broken)).rejects.toThrow();
+    const driver = await db.user.findUniqueOrThrow({ where: { id: driverId } });
+    expect(driver).toMatchObject({ passwordHash: "hash-nueva", status: "INACTIVE" });
+    await expect(
+      repo.create(
+        {
+          email: "sin-bitacora-" + tag + "@pasolanchas.test",
+          fullName: "Sin bitácora",
+          phone: "9211234567",
+          role: "DRIVER",
+          dockId: null,
+          passwordHash: "x",
+          createdAt: new Date(),
+        },
+        broken,
+      ),
+    ).rejects.toThrow();
+    expect(
+      await db.user.count({ where: { email: "sin-bitacora-" + tag + "@pasolanchas.test" } }),
+    ).toBe(0);
   });
 });

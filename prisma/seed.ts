@@ -240,6 +240,7 @@ async function main() {
     session_timeout_minutes_staff: 30,
     max_failed_logins: 5,
     lockout_minutes: 15, // bloqueo temporal del personal tras los intentos fallidos
+    crossing_minutes: 10, // duración típica del cruce entre muelles (minutos)
   };
   for (const [key, value] of Object.entries(settings)) {
     await prisma.systemSetting.upsert({

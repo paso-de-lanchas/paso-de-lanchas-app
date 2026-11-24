@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { InputError } from "@/application/shared/input-error";
 import type { NewStaffField } from "@/application/staff/staff-input";
 import { DomainError } from "@/domain/shared/domain-error";
+import type { StaffStatusChange } from "@/domain/staff/staff-rules";
 import { assertRole } from "@/lib/auth/require-role";
 import {
   createStaffAccount,
@@ -72,16 +73,19 @@ function failure(error: unknown): StaffActionState {
   throw error;
 }
 
-/** Desactivar o reactivar (RF-118). `change` viene del botón que se presionó. */
+/**
+ * Desactivar o reactivar (RF-118). `change` viene del botón que se presionó; el caso de uso
+ * rechaza cualquier valor que no sea DEACTIVATE o REACTIVATE.
+ */
 export async function changeStaffStatusAction(
   staffId: string,
   _prev: StaffActionState,
   formData: FormData,
 ): Promise<StaffActionState> {
   const actor = await assertRole("SUPERADMIN");
-  const change = formData.get("change") === "REACTIVATE" ? "REACTIVATE" : "DEACTIVATE";
+  let change: StaffStatusChange;
   try {
-    await setStaffStatus(actor, staffId, change);
+    change = await setStaffStatus(actor, staffId, formData.get("change"));
   } catch (error) {
     return failure(error);
   }
