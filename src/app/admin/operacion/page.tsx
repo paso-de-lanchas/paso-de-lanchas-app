@@ -38,10 +38,10 @@ export default async function OperacionPage({ searchParams }: OperacionPageProps
   const queued = departures.filter((d) => d.status === "QUEUED");
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 p-6 text-ink">
+    <main className="text-ink mx-auto max-w-6xl space-y-6 p-6">
       <div>
-        <h1 className="text-2xl font-bold text-ink">Operación del muelle</h1>
-        <p className="text-sm text-ink/70">
+        <h1 className="text-ink text-2xl font-bold">Operación del muelle</h1>
+        <p className="text-ink/70 text-sm">
           Gestión de fila de embarcaciones, apertura/cierre de abordaje y lista de espera.
         </p>
       </div>
@@ -57,7 +57,7 @@ export default async function OperacionPage({ searchParams }: OperacionPageProps
           waitlist={waitlist}
         />
       ) : (
-        <p className="text-sm text-ink/60">No hay muelles configurados en el sistema.</p>
+        <p className="text-ink/60 text-sm">No hay muelles configurados en el sistema.</p>
       )}
     </main>
   );

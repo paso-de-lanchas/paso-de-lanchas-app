@@ -206,3 +206,6 @@ Este proyecto es **ingeniería de software**: todo código debe:
 
 ### 2026-11-24 — Fila y salidas (#43, PR #58)
 - Se reforzo la operacion de fila y abordaje con bitacora obligatoria (prismaAuditLogger), bloqueo transaccional por muelle (FOR UPDATE), validacion de embarcacion activa en todos los muelles respaldada por indice unico parcial en departures y prueba E2E de flujo de abordaje.
+
+### 2026-11-24 — Cancelar salida y regreso (#46, PR #59)
+- Se integraron los cambios de #58, se invoca startNextBoarding al cancelar una salida BOARDING, se hace obligatorio ecordCashRefund (CASH_REFUND_READY) y unitOfWork, y se reutiliza processBoardingRefunds.

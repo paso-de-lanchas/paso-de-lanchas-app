@@ -130,11 +130,13 @@ function createFakeRepo(params?: {
         queuePosition: promoteToBoarding ? null : queuedCount + 1,
         passengerCapacity: data.passengerCapacity,
         boardingStartedAt: promoteToBoarding ? data.startedAt : null,
-        vehicleCapacities: data.vehicleCapacities.map((vc: { vehicleTypeId: number; capacity: number }) => ({
-          vehicleTypeId: vc.vehicleTypeId,
-          capacity: vc.capacity,
-          occupied: 0,
-        })),
+        vehicleCapacities: data.vehicleCapacities.map(
+          (vc: { vehicleTypeId: number; capacity: number }) => ({
+            vehicleTypeId: vc.vehicleTypeId,
+            capacity: vc.capacity,
+            occupied: 0,
+          }),
+        ),
       });
       departures.push(rec);
       return rec;
@@ -339,11 +341,7 @@ describe("departures use cases", () => {
     const repoConAbordaje = createFakeRepo({
       departures: [makeDeparture({ id: "dep-1", status: "BOARDING", queuePosition: null })],
     });
-    const addWaitlist = createAddToWaitlist(
-      repoConAbordaje,
-      fixedClock,
-      createFakeAuditLogger(),
-    );
+    const addWaitlist = createAddToWaitlist(repoConAbordaje, fixedClock, createFakeAuditLogger());
 
     await expect(
       addWaitlist({
@@ -355,5 +353,3 @@ describe("departures use cases", () => {
     ).rejects.toThrow(DomainError);
   });
 });
-
-

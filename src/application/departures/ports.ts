@@ -101,7 +101,9 @@ export interface DepartureRepository {
     dockId: string;
     startedAt: Date;
     pickNext: (queued: DepartureRecord[]) => DepartureRecord | null;
-    reorderRemaining: (remaining: DepartureRecord[]) => Array<{ id: string; queuePosition: number }>;
+    reorderRemaining: (
+      remaining: DepartureRecord[],
+    ) => Array<{ id: string; queuePosition: number }>;
   }): Promise<DepartureRecord | null>;
   updateDepartureStatus(params: {
     departureId: string;
