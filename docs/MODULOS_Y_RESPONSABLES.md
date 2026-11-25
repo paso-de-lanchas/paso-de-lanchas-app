@@ -147,14 +147,19 @@ que las páginas nuevas dentro de ellas pueden llamar a `requireRole` directamen
 
 **Administrador y superadministrador (issue #9):** solo entran desde una **computadora autorizada**. La primera vez que
 entras con `admin.coa`, `admin.val` o `superadmin` desde tu navegador, el login dice que la computadora no está
-autorizada y crea la solicitud. Mientras el superadministrador no tenga su pantalla (sprint 3), apruébala en tu base local
-con `npm run dev:aprobar-computadoras` y vuelve a entrar. Además, el personal se bloquea 15 minutos tras 5 contraseñas
+autorizada y crea la solicitud. Apruébala entrando como `superadmin` a `/superadmin/computadoras` (issue #42) o, más
+rápido, con `npm run dev:aprobar-computadoras` (solo en tu base local) y vuelve a entrar. Además, el personal se bloquea 15 minutos tras 5 contraseñas
 incorrectas seguidas, y la sesión de admin/superadmin se cierra tras 30 minutos sin actividad.
 
 **Contraseña temporal (issue #8):** si una cuenta tiene `must_change_password = true` (la que el superadmin crea o
 restablece), `requireRole` la manda a `/cuenta/cambiar-contrasena` y `assertRole` / `requireApiRole` responden 403
 hasta que la cambie. No necesitas hacer nada en tus módulos: ya lo hacen esas funciones. Las pruebas de navegador de
-contraseñas usan cuentas `e2e.*@pasolanchas.test` que se preparan solas al correr `npm run test:e2e`.
+contraseñas usan cuentas `e2e.*@pasolanchas.test` que se preparan solas al correr `npm run test:e2e`. Para probarlo a
+mano entra con `chofer.temporal@pasolanchas.test` (seed).
+
+**Cuentas del personal (issue #41):** con `superadmin` entra a `/superadmin/personal` para crear administradores o
+choferes de prueba; la contraseña temporal se muestra una vez (y llega a Mailpit, `http://localhost:8025`). En las
+pruebas de Playwright usa `login` y `loginFromAuthorizedComputer` de `tests/e2e/auth-helpers.ts`.
 
 ## 5. Cómo empieza cada quien (su primer día)
 
