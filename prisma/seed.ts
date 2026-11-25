@@ -1,12 +1,13 @@
 /**
  * Datos de ejemplo para desarrollo local: `npm run db:seed`.
- * Se puede ejecutar varias veces (usa upsert). NUNCA pongas aquÃƒÆ’Ã‚Â­ datos reales.
+ * Se puede ejecutar varias veces (usa upsert). NUNCA pongas aquí datos reales.
  *
- * Cuentas de prueba (todas con la contraseÃƒÆ’Ã‚Â±a de SEED_PASSWORD):
+ * Cuentas de prueba (todas con la contraseña de SEED_PASSWORD):
  *   superadmin@pasolanchas.test   Superadministrador
  *   admin.coa@pasolanchas.test    Administrador del muelle Coatzacoalcos
  *   admin.val@pasolanchas.test    Administrador del muelle Villa Allende
  *   chofer1@pasolanchas.test      Chofer
+ *   chofer.temporal@pasolanchas.test  Chofer con contraseña temporal (debe cambiarla al entrar)
  *   pasajero@pasolanchas.test     Pasajero con $100 de saldo
  *
  * Las tarifas, capacidades y coordenadas son APROXIMADAS hasta la visita de campo.
@@ -42,7 +43,7 @@ async function main() {
     create: { code: "VAL", name: "Villa Allende", latitude: "18.143500", longitude: "-94.444300" },
   });
 
-  // --- Horario de servicio (06:00 a 22:00 todos los dÃƒÆ’Ã‚Â­as, a confirmar)
+  // --- Horario de servicio (06:00 a 22:00 todos los días, a confirmar)
   for (const dock of [coa, val]) {
     for (let weekday = 0; weekday <= 6; weekday++) {
       await prisma.serviceHour.upsert({
@@ -58,8 +59,8 @@ async function main() {
     }
   }
 
-  // --- Tipos de vehÃƒÆ’Ã‚Â­culo (transbordador)
-  const vehicleTypeNames = ["AutomÃƒÆ’Ã‚Â³vil", "Motocicleta", "Camioneta", "Bicicleta"];
+  // --- Tipos de vehículo (transbordador)
+  const vehicleTypeNames = ["Automóvil", "Motocicleta", "Camioneta", "Bicicleta"];
   const vehicleTypes = new Map<string, number>();
   for (const name of vehicleTypeNames) {
     const vt = await prisma.vehicleType.upsert({ where: { name }, update: {}, create: { name } });
@@ -72,6 +73,7 @@ async function main() {
     fullName: string,
     role: "PASSENGER" | "DRIVER" | "ADMIN" | "SUPERADMIN",
     dockId?: string,
+    mustChangePassword = false,
   ) =>
     prisma.user.upsert({
       where: { email },
@@ -85,6 +87,7 @@ async function main() {
         status: "ACTIVE",
         emailVerifiedAt: now,
         privacyAcceptedAt: now,
+        mustChangePassword,
       },
     });
 
@@ -96,6 +99,14 @@ async function main() {
   const adminCoa = await user("admin.coa@pasolanchas.test", "Admin Coatzacoalcos", "ADMIN", coa.id);
   await user("admin.val@pasolanchas.test", "Admin Villa Allende", "ADMIN", val.id);
   const driver = await user("chofer1@pasolanchas.test", "Chofer de prueba", "DRIVER");
+  // Como si el superadministrador acabara de crearla (#41): al entrar pide cambiar la contraseña.
+  await user(
+    "chofer.temporal@pasolanchas.test",
+    "Chofer con contraseña temporal",
+    "DRIVER",
+    undefined,
+    true,
+  );
   const passenger = await user("pasajero@pasolanchas.test", "Pasajera de prueba", "PASSENGER");
 
   await prisma.wallet.upsert({
@@ -167,7 +178,7 @@ async function main() {
     const vessel = await prisma.vessel.upsert({ where: { code: v.code }, update: {}, create: v });
     if (v.kind === "FERRY") {
       for (const [name, capacity] of [
-        ["AutomÃƒÆ’Ã‚Â³vil", 12],
+        ["Automóvil", 12],
         ["Motocicleta", 10],
         ["Camioneta", 6],
       ] as const) {
@@ -189,7 +200,7 @@ async function main() {
     }
   }
 
-  // --- Tarifas vigentes (de ejemplo; transbordador segÃƒÆ’Ã‚Âºn prensa: $15 auto, $5 moto, $1 peatÃƒÆ’Ã‚Â³n)
+  // --- Tarifas vigentes (de ejemplo; transbordador según prensa: $15 auto, $5 moto, $1 peatón)
   if ((await prisma.fare.count()) === 0) {
     await prisma.fare.createMany({
       data: [
@@ -200,7 +211,7 @@ async function main() {
         {
           vesselKind: "FERRY",
           category: "VEHICLE",
-          vehicleTypeId: vehicleTypes.get("AutomÃƒÆ’Ã‚Â³vil"),
+          vehicleTypeId: vehicleTypes.get("Automóvil"),
           amount: "15.00",
           createdById: superadmin.id,
         },
@@ -229,6 +240,7 @@ async function main() {
     session_timeout_minutes_staff: 30,
     max_failed_logins: 5,
     lockout_minutes: 15, // bloqueo temporal del personal tras los intentos fallidos
+    crossing_minutes: 10, // duración típica del cruce entre muelles (minutos)
   };
   for (const [key, value] of Object.entries(settings)) {
     await prisma.systemSetting.upsert({
@@ -247,7 +259,7 @@ async function main() {
       },
     });
 
-  // PENDIENTE: confirmar en campo con operaciÃ³n de muelles
+  // PENDIENTE: confirmar en campo con operación de muelles
   await prisma.systemSetting.upsert({
     where: { key: "max_boarding_minutes" },
     update: {},

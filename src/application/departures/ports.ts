@@ -1,3 +1,4 @@
+﻿import type { ServiceOpenResult } from "@/domain/schedule/service-hours";
 import type { DepartureStatus } from "@/domain/departures/departure-state";
 import type { VesselKind } from "@/domain/fleet/vessel";
 
@@ -177,5 +178,6 @@ export interface DepartureRepository {
   findBoardingForUpdate(tx: unknown, dockId: string): Promise<DepartureRecord | null>;
   occupySeat(tx: unknown, departureId: string): Promise<number>;
   listBoardingsByDepartureId?(departureId: string): Promise<DepartureBoardingItem[]>;
+  isServiceOpenAt(dockId: string, at: Date): Promise<ServiceOpenResult>;
   unitOfWork?: DepartureUnitOfWork;
 }

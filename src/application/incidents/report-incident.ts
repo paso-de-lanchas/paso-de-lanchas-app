@@ -1,9 +1,22 @@
-import { assertDepartureTransition } from "@/domain/departures/departure-state";
 import { DomainError } from "@/domain/shared/domain-error";
 import { Money } from "@/domain/shared/money";
+import { processBoardingRefund } from "@/application/departures/refund-boarding";
 import type { AuditLogger, Clock } from "@/application/shared/ports";
 import type { IncidentActionType, IncidentRecord, IncidentRepository } from "./ports";
 
+function assertIncidentCancellableStatus(status: string): void {
+  if (
+    status !== "QUEUED" &&
+    status !== "BOARDING" &&
+    status !== "BOARDING_CLOSED" &&
+    status !== "IN_TRANSIT"
+  ) {
+    throw new DomainError(
+      "INVALID_DEPARTURE_TRANSITION",
+      `No se puede cambiar la salida de ${status} a CANCELLED por incidente.`,
+    );
+  }
+}
 export const INCIDENT_REASSIGN_PRIORITY = 1;
 
 export interface ReportIncidentInput {
@@ -87,7 +100,7 @@ export function createReportIncident(
         );
       }
 
-      assertDepartureTransition(initialDeparture.status, "CANCELLED");
+      assertIncidentCancellableStatus(initialDeparture.status);
     }
 
     const uow = repo.unitOfWork;
@@ -104,6 +117,10 @@ export function createReportIncident(
         reportedById: input.actorUserId,
       });
 
+      if (uow.setVesselMaintenance) {
+        await uow.setVesselMaintenance(tx, { vesselId });
+      }
+
       if (!departureId || !initialDeparture) {
         return {
           incident,
@@ -119,7 +136,7 @@ export function createReportIncident(
         ? ((await uow.lockDepartureForIncident(tx, departureId)) ?? initialDeparture)
         : initialDeparture;
 
-      assertDepartureTransition(currentDeparture.status, "CANCELLED");
+      assertIncidentCancellableStatus(currentDeparture.status);
 
       await uow.cancelDepartureForIncident(tx, {
         departureId: currentDeparture.id,
@@ -166,41 +183,45 @@ export function createReportIncident(
             });
           }
         } else {
-          await uow.markBoardingCancelledByIncident(tx, {
-            boardingId: boarding.id,
-            cancelReason,
-          });
+          const refundOutcome = await processBoardingRefund(
+            {
+              markCancelled: (p) => uow.markBoardingCancelledByIncident(tx, p),
+              creditWallet: (p) =>
+                uow.creditWalletRefund(tx, {
+                  passengerId: p.passengerId,
+                  saleId: p.saleId,
+                  amountPesos: p.amountPesos,
+                  reason: p.reason,
+                  performedById: input.actorUserId,
+                }),
+              notify: (n) =>
+                uow.createNotification(tx, {
+                  userId: n.userId,
+                  type: "INCIDENT_REFUNDED",
+                  title: n.title,
+                  body: n.body,
+                }),
+            },
+            {
+              boarding,
+              cancelReason,
+              refundReason: `Reembolso por incidente (${type}): ${description}`,
+              notificationTitle: "Salida cancelada por incidente",
+              notifiedUsers,
+              buildNotificationBody: ({ seatNumber, amountFormatted, isWalletRefund }) => {
+                const refundText = isWalletRefund
+                  ? `Se reembolsaron ${amountFormatted} a tu monedero.`
+                  : `Tu boleto #${seatNumber} (${amountFormatted}) está listo para devolución en caja.`;
+                return `Se reportó un incidente (${type}). ${refundText}`;
+              },
+            },
+          );
 
-          const amountMoney = Money.fromPesos(boarding.amountCharged);
-          const exactAmount = amountMoney.toDecimalString();
-
-          if (boarding.saleChannel === "QR_BALANCE" && boarding.passengerId) {
-            await uow.creditWalletRefund(tx, {
-              passengerId: boarding.passengerId,
-              saleId: boarding.saleId,
-              amountPesos: exactAmount,
-              reason: `Reembolso por incidente (${type}): ${description}`,
-              performedById: input.actorUserId,
-            });
+          if (refundOutcome.refundedToWallet) {
             refundedBalanceCount += 1;
-            refundSum = refundSum.add(amountMoney);
+            refundSum = refundSum.add(refundOutcome.amountMoney);
           } else {
             cashRefundsReadyCount += 1;
-          }
-
-          if (boarding.passengerId && !notifiedUsers.has(boarding.passengerId)) {
-            notifiedUsers.add(boarding.passengerId);
-            const refundText =
-              boarding.saleChannel === "QR_BALANCE"
-                ? `Se reembolsaron ${amountMoney.format()} a tu monedero.`
-                : `Tu boleto #${boarding.seatNumber} (${amountMoney.format()}) está listo para devolución en caja.`;
-
-            await uow.createNotification(tx, {
-              userId: boarding.passengerId,
-              type: "INCIDENT_REFUNDED",
-              title: "Salida cancelada por incidente",
-              body: `Se reportó un incidente (${type}). ${refundText}`,
-            });
           }
         }
       }

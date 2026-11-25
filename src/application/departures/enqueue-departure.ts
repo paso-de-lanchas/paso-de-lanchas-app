@@ -53,6 +53,16 @@ export function createEnqueueDeparture(
       throw new DomainError("DOCK_NOT_FOUND", "No se encontró el muelle de origen o destino.");
     }
 
+    if (repo.isServiceOpenAt) {
+      const scheduleStatus = await repo.isServiceOpenAt(originDockId, clock.now());
+      if (!scheduleStatus.open) {
+        throw new DomainError(
+          "SERVICE_CLOSED",
+          scheduleStatus.reason ?? "El servicio del muelle está cerrado fuera de horario.",
+        );
+      }
+    }
+
     const vessel = await repo.findEligibleVessel(vesselId);
     if (!vessel) {
       throw new DomainError("VESSEL_NOT_FOUND", "No se encontró la embarcación indicada.");

@@ -1,3 +1,8 @@
+import {
+  evaluateServiceOpen,
+  type ServiceOpenResult,
+  type ServiceOverrideType,
+} from "@/domain/schedule/service-hours";
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { DomainError } from "@/domain/shared/domain-error";
 import { Money } from "@/domain/shared/money";
@@ -712,5 +717,33 @@ export class PrismaDepartureRepository implements DepartureRepository {
         vehiclePlate: vehicle?.plate ?? null,
       };
     });
+  }
+
+  async isServiceOpenAt(dockId: string, at: Date): Promise<ServiceOpenResult> {
+    const [hours, overrides] = await Promise.all([
+      this.prisma.serviceHour.findMany({
+        where: { dockId },
+        orderBy: { weekday: "asc" },
+      }),
+      this.prisma.dockServiceOverride.findMany({
+        where: {
+          dockId,
+          startsAt: { lte: at },
+          OR: [{ endsAt: null }, { endsAt: { gt: at } }],
+        },
+        orderBy: { startsAt: "desc" },
+      }),
+    ]);
+
+    return evaluateServiceOpen(
+      hours.map((h) => ({ weekday: h.weekday, opensAt: h.opensAt, closesAt: h.closesAt })),
+      overrides.map((o) => ({
+        type: o.type as ServiceOverrideType,
+        reason: o.reason,
+        startsAt: o.startsAt,
+        endsAt: o.endsAt,
+      })),
+      at,
+    );
   }
 }

@@ -50,6 +50,14 @@ export class PrismaScheduleIncidentRepository implements ScheduleRepository, Inc
         return this.prisma.$transaction(async (tx) => work(tx));
       },
 
+      setVesselMaintenance: async (tx: unknown, params: { vesselId: string }): Promise<void> => {
+        const client = asTx(tx, this.prisma);
+        await client.vessel.update({
+          where: { id: params.vesselId },
+          data: { status: "MAINTENANCE" },
+        });
+      },
+
       createIncident: async (
         tx: unknown,
         data: {

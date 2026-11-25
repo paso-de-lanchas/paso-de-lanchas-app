@@ -17,6 +17,17 @@ export function createStartNextBoarding(
       throw new DomainError("INVALID_DOCK_ID", "El identificador del muelle es obligatorio.");
     }
 
+    const now = clock.now();
+    if (repo.isServiceOpenAt) {
+      const scheduleStatus = await repo.isServiceOpenAt(cleanDockId, now);
+      if (!scheduleStatus.open) {
+        throw new DomainError(
+          "SERVICE_CLOSED",
+          scheduleStatus.reason ?? "El servicio del muelle está cerrado fuera de horario.",
+        );
+      }
+    }
+
     const currentBoarding = await repo.findActiveBoardingByDock(cleanDockId);
     if (currentBoarding) {
       return null;
@@ -33,7 +44,6 @@ export function createStartNextBoarding(
       return null;
     }
 
-    const now = clock.now();
     const updated = await repo.updateDepartureStatus({
       departureId: next.id,
       fromStatus: "QUEUED",

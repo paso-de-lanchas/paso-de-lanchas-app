@@ -34,6 +34,7 @@ export interface IncidentBoardingItem {
 
 export interface IncidentUnitOfWork {
   run<T>(work: (tx: unknown) => Promise<T>): Promise<T>;
+  setVesselMaintenance?(tx: unknown, params: { vesselId: string }): Promise<void>;
   createIncident(
     tx: unknown,
     data: {

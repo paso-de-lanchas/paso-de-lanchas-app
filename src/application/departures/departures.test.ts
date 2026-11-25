@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+﻿import { describe, expect, it, vi } from "vitest";
 import { DomainError } from "@/domain/shared/domain-error";
 import type { Clock } from "@/application/shared/ports";
 import { createAddToWaitlist } from "./add-to-waitlist";
@@ -140,6 +140,10 @@ function createFakeRepo(params?: {
       }),
     ),
     findBoardingForUpdate: vi.fn(async () => null),
+    isServiceOpenAt: vi.fn(async () => ({
+      open: true,
+      reasonCode: "REGULAR_HOURS" as const,
+    })),
     occupySeat: vi.fn(async () => 1),
   };
 }
@@ -162,7 +166,7 @@ describe("departures use cases", () => {
     expect(dep.boardingStartedAt).toEqual(fixedClock.now());
   });
 
-  it("impide encolar embarcación sin chofer asignado o con muelle de otro admin", async () => {
+  it("impide encolar embarcaciÃ³n sin chofer asignado o con muelle de otro admin", async () => {
     const repoSinChofer = createFakeRepo({
       vessel: {
         id: "vessel-2",
@@ -246,14 +250,14 @@ describe("departures use cases", () => {
     const addWaitlist = createAddToWaitlist(repo, fixedClock);
     const entry = await addWaitlist({
       dockId: "dock-coa",
-      label: "Juan Pérez",
+      label: "Juan PÃ©rez",
       actorUserId: "admin-1",
     });
-    expect(entry.label).toBe("Juan Pérez");
+    expect(entry.label).toBe("Juan PÃ©rez");
     expect(entry.status).toBe("WAITING");
   });
 
-  it("impide registrar en lista de espera si ya hay una embarcación abordando", async () => {
+  it("impide registrar en lista de espera si ya hay una embarcaciÃ³n abordando", async () => {
     const repoConAbordaje = createFakeRepo({
       departures: [makeDeparture({ id: "dep-1", status: "BOARDING", queuePosition: null })],
     });
@@ -262,7 +266,7 @@ describe("departures use cases", () => {
     await expect(
       addWaitlist({
         dockId: "dock-coa",
-        label: "Ana López",
+        label: "Ana LÃ³pez",
         actorUserId: "admin-1",
       }),
     ).rejects.toThrow(DomainError);

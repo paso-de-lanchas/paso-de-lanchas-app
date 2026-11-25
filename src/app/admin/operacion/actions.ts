@@ -12,7 +12,7 @@ import { createCloseBoarding } from "@/application/departures/close-boarding";
 import { createAddToWaitlist } from "@/application/departures/add-to-waitlist";
 import { createSetExtraService } from "@/application/schedule/set-extra-service";
 import { createReportIncident } from "@/application/incidents/report-incident";
-import type { AuditLogger } from "@/application/shared/ports";
+import { prismaAuditLogger } from "@/infrastructure/audit/prisma-audit-logger";
 import { DomainError } from "@/domain/shared/domain-error";
 
 export interface OperationActionState {
@@ -23,28 +23,7 @@ export interface OperationActionState {
 const systemClock = {
   now: () => new Date(),
 };
-
-const prismaAuditLogger: AuditLogger = {
-  log: async (entry) => {
-    const client = prisma as unknown as {
-      auditLog?: {
-        create: (args: { data: Record<string, unknown> }) => Promise<unknown>;
-      };
-    };
-    if (client.auditLog?.create) {
-      await client.auditLog.create({
-        data: {
-          userId: entry.userId,
-          deviceId: entry.deviceId ?? null,
-          action: entry.action,
-          entity: entry.entity,
-          entityId: entry.entityId ?? null,
-          details: entry.details ?? {},
-        },
-      });
-    }
-  },
-};
+const auditLogger = prismaAuditLogger(prisma);
 
 const enqueueSchema = z.object({
   vesselId: z.string().uuid(),
@@ -103,7 +82,7 @@ export async function enqueueDepartureAction(
     const parsed = enqueueSchema.parse(input);
     const actorDockId = await getUserDockId(user.id);
     const repo = new PrismaDepartureRepository(prisma);
-    const enqueue = createEnqueueDeparture(repo, systemClock);
+    const enqueue = createEnqueueDeparture(repo, systemClock, auditLogger);
     await enqueue({
       vesselId: parsed.vesselId,
       originDockId: parsed.originDockId,
@@ -148,7 +127,7 @@ export async function closeBoardingAction(
     const parsed = closeBoardingSchema.parse(input);
     const actorDockId = await getUserDockId(user.id);
     const repo = new PrismaDepartureRepository(prisma);
-    const closeBoarding = createCloseBoarding(repo, systemClock);
+    const closeBoarding = createCloseBoarding(repo, systemClock, auditLogger);
     const result = await closeBoarding({
       departureId: parsed.departureId,
       actorUserId: user.id,
@@ -197,7 +176,7 @@ export async function setExtraServiceAction(
     const parsed = extraServiceSchema.parse(input);
     const actorDockId = await getUserDockId(user.id);
     const repo = new PrismaScheduleIncidentRepository(prisma);
-    const setExtra = createSetExtraService(repo, systemClock, prismaAuditLogger);
+    const setExtra = createSetExtraService(repo, systemClock, auditLogger);
     const res = await setExtra({
       dockId: parsed.dockId,
       enabled: parsed.enabled,
@@ -225,7 +204,7 @@ export async function reportIncidentAction(
     const parsed = incidentSchema.parse(input);
     const actorDockId = await getUserDockId(user.id);
     const repo = new PrismaScheduleIncidentRepository(prisma);
-    const report = createReportIncident(repo, systemClock, prismaAuditLogger);
+    const report = createReportIncident(repo, systemClock, auditLogger);
     const res = await report({
       vesselId: parsed.vesselId,
       departureId: parsed.departureId || null,

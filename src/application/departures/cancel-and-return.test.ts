@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+﻿import { describe, expect, it, vi } from "vitest";
 import { DomainError } from "@/domain/shared/domain-error";
 import type { Clock } from "@/application/shared/ports";
 import { createCancelDeparture } from "./cancel-departure";
@@ -220,6 +220,10 @@ function buildTestRepo(params: {
       throw new Error("not used");
     }),
     findBoardingForUpdate,
+    isServiceOpenAt: vi.fn(async () => ({
+      open: true,
+      reasonCode: "REGULAR_HOURS" as const,
+    })),
     occupySeat: vi.fn(async () => 1),
     listBoardingsByDepartureId:
       params.withListBoardings === false ? undefined : vi.fn(async () => sampleBoardings),
@@ -286,7 +290,7 @@ describe("Issue #46: cancelar salida, regreso y lista de abordados", () => {
     });
     const res = await cancelDeparture({
       departureId: "dep-1",
-      cancelReason: "Norte fuerte en el río",
+      cancelReason: "Norte fuerte en el rÃ­o",
       actorUserId: "admin-1",
     });
 
@@ -335,7 +339,7 @@ describe("Issue #46: cancelar salida, regreso y lista de abordados", () => {
     expect(auditLog).toHaveBeenCalledTimes(1);
   });
 
-  it("rechaza cancelar salida en tránsito o sin motivo obligatorio", async () => {
+  it("rechaza cancelar salida en trÃ¡nsito o sin motivo obligatorio", async () => {
     const { repo } = buildTestRepo({
       departures: [makeDeparture({ id: "dep-transit", status: "IN_TRANSIT" })],
     });
@@ -401,7 +405,7 @@ describe("Issue #46: cancelar salida, regreso y lista de abordados", () => {
     expect(typeof createReturnDeparture).toBe("function");
   });
 
-  it("valida errores en salida de regreso (id vacío, inexistente, muelle ajeno y sin unitOfWork)", async () => {
+  it("valida errores en salida de regreso (id vacÃ­o, inexistente, muelle ajeno y sin unitOfWork)", async () => {
     const { repo: repoNoUow } = buildTestRepo({
       departures: [makeDeparture({ id: "dep-out", status: "IN_TRANSIT" })],
       withUnitOfWork: false,
@@ -431,7 +435,7 @@ describe("Issue #46: cancelar salida, regreso y lista de abordados", () => {
     expect(resNoUow.finishedDeparture.status).toBe("FINISHED");
   });
 
-  it("lista los abordados con boleto de taquilla, fallback de nombre y datos de vehículo", async () => {
+  it("lista los abordados con boleto de taquilla, fallback de nombre y datos de vehÃ­culo", async () => {
     const { repo } = buildTestRepo({
       departures: [makeDeparture({ id: "dep-1", status: "BOARDING" })],
     });
