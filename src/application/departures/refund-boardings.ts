@@ -1,5 +1,6 @@
-import { Money } from "@/domain/shared/money";
+﻿import { Money } from "@/domain/shared/money";
 import type {
+  CashRefundRecordInput,
   CreateNotificationInput,
   DepartureBoardingForCancel,
   RefundPassengerInput,
@@ -27,19 +28,7 @@ export interface RefundBoardingsTxOps {
     params: { boardingId: string; cancelReason: string },
   ): Promise<void>;
   creditWalletRefund(tx: unknown, input: RefundPassengerInput): Promise<void>;
-  recordCashRefund?(
-    tx: unknown,
-    params: {
-      boardingId: string;
-      saleId: string;
-      departureId: string | null;
-      passengerId: string | null;
-      seatNumber: number;
-      amountPesos: string;
-      reason: string;
-      performedById: string;
-    },
-  ): Promise<void>;
+  recordCashRefund(tx: unknown, input: CashRefundRecordInput): Promise<void>;
   createNotification(tx: unknown, input: CreateNotificationInput): Promise<void>;
 }
 
@@ -103,18 +92,16 @@ export async function processBoardingRefunds(
         refundMethod: "WALLET",
       });
     } else {
-      if (ops.recordCashRefund) {
-        await ops.recordCashRefund(tx, {
-          boardingId: boarding.id,
-          saleId: boarding.saleId,
-          departureId: params.departureId,
-          passengerId: boarding.passengerId,
-          seatNumber: boarding.seatNumber,
-          amountPesos: exactAmount,
-          reason: `${params.reasonPrefix}: ${params.reason}`,
-          performedById: params.actorUserId,
-        });
-      }
+      await ops.recordCashRefund(tx, {
+        boardingId: boarding.id,
+        saleId: boarding.saleId,
+        departureId: params.departureId,
+        passengerId: boarding.passengerId,
+        seatNumber: boarding.seatNumber,
+        amountPesos: exactAmount,
+        reason: `${params.reasonPrefix}: ${params.reason}`,
+        performedById: params.actorUserId,
+      });
       cashRefundsReady.push({
         boardingId: boarding.id,
         saleId: boarding.saleId,

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+﻿import { describe, expect, it, vi } from "vitest";
 import { DomainError } from "@/domain/shared/domain-error";
 import { createCancelDeparture } from "./cancel-departure";
 import { createReturnDeparture } from "./create-return-departure";
@@ -45,7 +45,7 @@ function makeRepo(overrides: Partial<DepartureRepository> = {}): DepartureReposi
     markDepartureCancelled: vi.fn().mockResolvedValue({
       ...baseDeparture,
       status: "CANCELLED",
-      cancelReason: "Falla mecánica",
+      cancelReason: "Falla mecÃ¡nica",
     }),
     listBoardingsForDeparture: vi.fn().mockResolvedValue([
       {
@@ -96,10 +96,17 @@ function makeRepo(overrides: Partial<DepartureRepository> = {}): DepartureReposi
     findEligibleVessel: vi.fn().mockResolvedValue(null),
     listEligibleVessels: vi.fn().mockResolvedValue([]),
     listDeparturesByDock: vi.fn().mockResolvedValue([queuedNext]),
+    findActiveDepartureByVessel: vi.fn().mockResolvedValue(null),
     findDepartureById: vi.fn().mockResolvedValue(baseDeparture),
     findActiveBoardingByDock: vi.fn().mockResolvedValue(null),
     createDeparture: vi.fn(),
+    enqueueDepartureInTx: vi.fn().mockResolvedValue(queuedNext),
     updateDepartureStatus: vi.fn().mockResolvedValue({
+      ...queuedNext,
+      status: "BOARDING",
+      queuePosition: null,
+    }),
+    startNextBoardingInTx: vi.fn().mockResolvedValue({
       ...queuedNext,
       status: "BOARDING",
       queuePosition: null,
@@ -107,8 +114,6 @@ function makeRepo(overrides: Partial<DepartureRepository> = {}): DepartureReposi
     applyQueuePositions: vi.fn().mockResolvedValue(undefined),
     listWaitlistByDock: vi.fn().mockResolvedValue([]),
     createWaitlistEntry: vi.fn(),
-    findBoardingForUpdate: vi.fn().mockResolvedValue(null),
-    occupySeat: vi.fn().mockResolvedValue(1),
     unitOfWork,
     ...overrides,
   };
@@ -124,7 +129,7 @@ describe("cancelDeparture y createReturnDeparture (#46)", () => {
 
     const res = await cancelDeparture({
       departureId: "dep-1",
-      cancelReason: "Falla mecánica",
+      cancelReason: "Falla mecÃ¡nica",
       actorUserId: "admin-1",
       actorDockId: "dock-coa",
     });
@@ -178,3 +183,7 @@ describe("cancelDeparture y createReturnDeparture (#46)", () => {
     expect(res.returnDeparture.status).toBe("QUEUED");
   });
 });
+
+
+
+

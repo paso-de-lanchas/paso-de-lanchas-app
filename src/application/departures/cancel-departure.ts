@@ -1,4 +1,4 @@
-import { assertDepartureTransition } from "@/domain/departures/departure-state";
+﻿import { assertDepartureTransition } from "@/domain/departures/departure-state";
 import { DomainError } from "@/domain/shared/domain-error";
 import type { AuditLogger, Clock } from "@/application/shared/ports";
 import type { CashRefundItem, PassengerRefundDetail } from "./refund-boardings";
@@ -26,10 +26,14 @@ export interface CancelDepartureResult {
   nextBoarding: DepartureRecord | null;
 }
 
+const noopAuditLogger: AuditLogger = {
+  log: async () => {},
+};
+
 export function createCancelDeparture(
   repo: DepartureRepository,
   clock: Clock,
-  auditLogger?: AuditLogger,
+  auditLogger: AuditLogger = noopAuditLogger,
 ) {
   const startNextBoarding = createStartNextBoarding(repo, clock, auditLogger);
 
@@ -72,10 +76,6 @@ export function createCancelDeparture(
         ? ((await uow.lockDepartureForUpdate(tx, departureId)) ?? initialDeparture)
         : initialDeparture;
 
-      if (repo.findBoardingForUpdate) {
-        await repo.findBoardingForUpdate(tx, current.originDockId);
-      }
-
       if (input.actorDockId && input.actorDockId !== current.originDockId) {
         throw new DomainError("DOCK_ACCESS_DENIED", "Solo puedes cancelar salidas de tu muelle.");
       }
@@ -94,7 +94,7 @@ export function createCancelDeparture(
         {
           markBoardingCancelled: uow.markBoardingCancelled.bind(uow),
           creditWalletRefund: uow.creditWalletRefund.bind(uow),
-          recordCashRefund: uow.recordCashRefund ? uow.recordCashRefund.bind(uow) : undefined,
+          recordCashRefund: uow.recordCashRefund.bind(uow),
           createNotification: uow.createNotification.bind(uow),
         },
         {
@@ -116,28 +116,28 @@ export function createCancelDeparture(
     });
 
     const nextBoarding = txResult.wasBoarding
-      ? await startNextBoarding(txResult.departure.originDockId, input.actorUserId)
+      ? await startNextBoarding(txResult.departure.originDockId, input.actorUserId).catch(
+          async () => null,
+        )
       : null;
 
-    if (auditLogger) {
-      await auditLogger.log({
-        userId: input.actorUserId,
-        action: "DEPARTURE_CANCELLED",
-        entity: "departures",
-        entityId: txResult.departure.id,
-        details: {
-          cancelReason,
-          cancelledBoardingsCount: txResult.cancelledBoardingsCount,
-          refundedBalanceCount: txResult.refundedBalanceCount,
-          totalRefundedBalance: txResult.totalRefundedBalance,
-          refundsByBoarding: txResult.refundsByBoarding,
-          cashRefundsCount: txResult.cashRefundsReady.length,
-          notifiedPassengersCount: txResult.notifiedPassengersCount,
-          nextBoardingId: nextBoarding?.id ?? null,
-          cancelledAt: now.toISOString(),
-        },
-      });
-    }
+    await auditLogger.log({
+      userId: input.actorUserId,
+      action: "DEPARTURE_CANCELLED",
+      entity: "departures",
+      entityId: txResult.departure.id,
+      details: {
+        cancelReason,
+        cancelledBoardingsCount: txResult.cancelledBoardingsCount,
+        refundedBalanceCount: txResult.refundedBalanceCount,
+        totalRefundedBalance: txResult.totalRefundedBalance,
+        refundsByBoarding: txResult.refundsByBoarding,
+        cashRefundsCount: txResult.cashRefundsReady.length,
+        notifiedPassengersCount: txResult.notifiedPassengersCount,
+        nextBoardingId: nextBoarding?.id ?? null,
+        cancelledAt: now.toISOString(),
+      },
+    });
 
     return {
       departure: txResult.departure,
@@ -151,3 +151,4 @@ export function createCancelDeparture(
     };
   };
 }
+
