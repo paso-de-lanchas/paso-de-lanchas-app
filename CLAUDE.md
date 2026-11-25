@@ -68,6 +68,11 @@ repositorio:
   **Saldo y recargas (#37):** `/pasajero/saldo`, búsqueda y recarga en efectivo en `/admin/recargas`, reembolsos,
   ajustes con motivo, comprobantes, límites configurables y caja abierta al primer cobro. El código quedó en la rama
   `feature/37-saldo-y-recargas`; el push y PR los realiza Cova.
+  **Cuentas del personal (#41):** `/superadmin/personal` crea administradores (con muelle) y choferes con contraseña
+  temporal que se ve una sola vez (y se manda por correo); desactiva (cierra sesiones), reactiva, desbloquea y
+  restablece la contraseña. **Computadoras (#42):** `/superadmin/computadoras` (pendientes, aprobadas y revocadas)
+  aprueba con nombre y muelle (oficina solo para el superadmin) y revoca cerrando sus sesiones. Las demás pantallas
+  por rol siguen temporales.
 - **Permisos en GitHub (2026-11-23, D26):** equipo `desarrollo` con permiso de escritura (los 5 suben sus ramas al
   repo); en `develop` todo entra por PR con la CI en verde y **solo Omar aprueba y fusiona** (`.github/CODEOWNERS`).
 
@@ -129,7 +134,7 @@ docker compose up -d       servicios locales (BD 5434, BD de pruebas 5435, Mailp
 npm run dev                app en http://localhost:3000 (salud: /api/health)
 npm run db:migrate         aplica/crea migraciones en la BD local (-- --name descripcion para crear una nueva)
 npm run db:seed            datos de ejemplo (cuentas de prueba al inicio de prisma/seed.ts)
-npm run dev:aprobar-computadoras  autoriza en la BD local la computadora pendiente (para entrar como admin/superadmin)
+npm run dev:aprobar-computadoras  autoriza en la BD local las computadoras pendientes (-- correo: solo las de esa cuenta)
 npm run db:studio          ver/editar datos locales con Prisma Studio
 npm run db:test:prepare    migra la BD de pruebas
 npm run check              lint + tipos + pruebas (córrelo antes de cada PR)
@@ -167,6 +172,12 @@ npm run format             Prettier
 | 2026-11-22 | José | Issue #16 (revisión PR #23): eliminar `userId` oculto del formulario y obtener sesión en servidor con `requireRole`/`assertRole` |
 | 2026-11-23 | Omar (con Claude) | Permisos en GitHub (D26): equipo `desarrollo` con escritura, `.github/CODEOWNERS`, reglas de `develop` (PR obligatorio, CI en verde, aprobación de Omar); guía de contribución actualizada |
 | 2026-11-23 | Cova | Issue #37: saldo e historial paginado, top-up en efectivo con límites configurables, ajustes/reembolsos auditados, comprobante, caja automática en computadora autorizada y control de concurrencia optimista |
+| 2026-11-23 | José | Issue #40: galería de vehículos del pasajero con normalización de placas, tarifa vigente por tipo, borrado lógico, vistas `/pasajero/vehiculos` y endpoint `GET /api/pasajero/vehiculos` (RF-039 a RF-042) |
+| 2026-11-23 | José | Issue #48: tablero en vivo de muelles con actualización cada 10 s (`GET /api/pasajero/muelles`), tiempos estimados de salida/llegada (`eta.ts`), horarios, tarifas vigentes (`crossing_minutes` en seed) e historial paginado de viajes (RF-082 a RF-087) |
+| 2026-11-24 | Omar (con Claude) | Cuentas del personal (#41): alta de admin/chofer con contraseña temporal de 12 caracteres (`crypto.randomInt`), desactivar con cierre de sesiones, reactivar, desbloquear y restablecer; nunca superadmins ni pasajeros; bitácora; `src/lib/mailer.ts` compartido; chofer `chofer.temporal` en el seed; ayudas e2e en `tests/e2e/auth-helpers.ts` |
+| 2026-11-24 | Omar (con Claude) | Computadoras del muelle (#42): pantalla del superadmin para aprobar (nombre y muelle; la del admin no puede quedar de oficina), renombrar y revocar (borra sus sesiones); columna `authorized_devices.requested_at`; `dev:aprobar-computadoras -- correo` para que las pruebas en paralelo no se crucen |
+| 2026-11-24 | Omar (con Claude) | Revisión de Cova a #55 y #56: cada cambio de cuentas del personal y de computadoras guarda su bitácora **en la misma transacción** (`ChangeAudit`, `auditLogData`); la acción de estado solo acepta DEACTIVATE/REACTIVATE; la computadora de un admin solo se aprueba para **su** muelle |
+
 
 ## Registro de errores y soluciones
 

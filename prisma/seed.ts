@@ -7,6 +7,7 @@
  *   admin.coa@pasolanchas.test    Administrador del muelle Coatzacoalcos
  *   admin.val@pasolanchas.test    Administrador del muelle Villa Allende
  *   chofer1@pasolanchas.test      Chofer
+ *   chofer.temporal@pasolanchas.test  Chofer con contraseña temporal (debe cambiarla al entrar)
  *   pasajero@pasolanchas.test     Pasajero con $100 de saldo
  *
  * Las tarifas, capacidades y coordenadas son APROXIMADAS hasta la visita de campo.
@@ -72,6 +73,7 @@ async function main() {
     fullName: string,
     role: "PASSENGER" | "DRIVER" | "ADMIN" | "SUPERADMIN",
     dockId?: string,
+    mustChangePassword = false,
   ) =>
     prisma.user.upsert({
       where: { email },
@@ -85,6 +87,7 @@ async function main() {
         status: "ACTIVE",
         emailVerifiedAt: now,
         privacyAcceptedAt: now,
+        mustChangePassword,
       },
     });
 
@@ -96,6 +99,14 @@ async function main() {
   const adminCoa = await user("admin.coa@pasolanchas.test", "Admin Coatzacoalcos", "ADMIN", coa.id);
   await user("admin.val@pasolanchas.test", "Admin Villa Allende", "ADMIN", val.id);
   const driver = await user("chofer1@pasolanchas.test", "Chofer de prueba", "DRIVER");
+  // Como si el superadministrador acabara de crearla (#41): al entrar pide cambiar la contraseña.
+  await user(
+    "chofer.temporal@pasolanchas.test",
+    "Chofer con contraseña temporal",
+    "DRIVER",
+    undefined,
+    true,
+  );
   const passenger = await user("pasajero@pasolanchas.test", "Pasajera de prueba", "PASSENGER");
 
   await prisma.wallet.upsert({
@@ -231,6 +242,7 @@ async function main() {
     session_timeout_minutes_staff: 30,
     max_failed_logins: 5,
     lockout_minutes: 15, // bloqueo temporal del personal tras los intentos fallidos
+    crossing_minutes: 10, // duración típica del cruce entre muelles (minutos)
   };
   for (const [key, value] of Object.entries(settings)) {
     await prisma.systemSetting.upsert({

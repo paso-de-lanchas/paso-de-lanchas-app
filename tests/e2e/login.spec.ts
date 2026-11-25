@@ -2,32 +2,9 @@
  * Iniciar y cerrar sesión por rol (issues #7 y #9). Usa las cuentas de `prisma/seed.ts`:
  * corre `npm run db:seed` antes.
  */
-import { execSync } from "node:child_process";
+import { expect, test } from "@playwright/test";
 
-import { expect, test, type Page } from "@playwright/test";
-
-// La misma contraseña de prueba que SEED_PASSWORD en prisma/seed.ts (solo existe en desarrollo).
-const SEED_PASSWORD = "PasoLanchas-dev-2026";
-
-async function login(page: Page, email: string, password = SEED_PASSWORD) {
-  await page.getByLabel("Correo electrónico").fill(email);
-  await page.getByLabel("Contraseña").fill(password);
-  await page.getByRole("button", { name: "Iniciar sesión" }).click();
-}
-
-const DEVICE_PENDING = "Esta computadora todavía no está autorizada";
-
-/**
- * El administrador y el superadministrador necesitan una computadora autorizada: cada prueba
- * usa un navegador nuevo (computadora nueva), así que la primera vez se crea la solicitud,
- * se aprueba con el script de desarrollo y se vuelve a entrar.
- */
-async function loginFromAuthorizedComputer(page: Page, email: string) {
-  await login(page, email);
-  await expect(page.getByText(DEVICE_PENDING)).toBeVisible();
-  execSync("npm run dev:aprobar-computadoras", { stdio: "ignore" });
-  await login(page, email);
-}
+import { login, loginFromAuthorizedComputer } from "./auth-helpers";
 
 const accounts = [
   { email: "pasajero@pasolanchas.test", section: "/pasajero", heading: "Pasajero", staff: false },

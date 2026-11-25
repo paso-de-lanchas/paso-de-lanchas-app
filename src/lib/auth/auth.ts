@@ -29,10 +29,10 @@ import {
   prismaEmailTokenRepository,
   prismaPassengerRegistrationRepository,
 } from "@/infrastructure/auth/prisma-registration-repositories";
-import { smtpMailer } from "@/infrastructure/auth/smtp-mailer";
 import { prisma } from "@/infrastructure/db/prisma";
 import { DomainError } from "@/domain/shared/domain-error";
 import { env } from "@/lib/env";
+import { mailer } from "@/lib/mailer";
 
 import {
   DEVICE_COOKIE,
@@ -67,14 +67,6 @@ const getCurrentUserUseCase = createGetCurrentUser({
   clock: systemClock,
 });
 const logoutUseCase = createLogout({ sessions, tokens: cryptoTokenService, audit });
-
-const mailer = smtpMailer({
-  host: env.SMTP_HOST,
-  port: env.SMTP_PORT,
-  user: env.SMTP_USER,
-  password: env.SMTP_PASSWORD,
-  from: env.MAIL_FROM,
-});
 
 const passwords = prismaPasswordRepository(prisma);
 const emailTokens = prismaEmailTokenRepository(prisma);

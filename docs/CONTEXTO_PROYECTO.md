@@ -213,3 +213,24 @@ Este proyecto es **ingeniería de software**: todo código debe:
   responsable y caja quedan registrados.
 - Las actualizaciones del saldo usan `version` para control optimista y reintentan conflictos. Las pruebas locales
   cubren dominio, casos de uso y dos recargas concurrentes; el PR y la CI quedan pendientes de Cova.
+### 2026-11-24 — Cuentas del personal (#41)
+- El superadministrador crea en `/superadmin/personal/nuevo` cuentas de **administrador** (con muelle obligatorio) y
+  **chofer** (sin muelle). Nacen `ACTIVE`, con el correo ya confirmado y `must_change_password`. La contraseña temporal
+  (12 caracteres sin 0/O/1/l/I, con `crypto.randomInt`) se muestra **una sola vez** y se manda por correo; si el correo
+  falla, la cuenta queda creada y la pantalla lo avisa.
+- En el detalle de cada cuenta: desactivar (borra sus sesiones en la misma transacción), reactivar, desbloquear
+  (intentos en 0 y sin `locked_until`) y restablecer la contraseña (temporal nueva, cierra sesiones e invalida enlaces de
+  recuperación pendientes). Los cambios de estado son condicionales para que dos superadmins no se pisen.
+- Nunca se listan ni modifican superadministradores (incluido uno mismo) ni pasajeros: se tratan como si no existieran.
+  Todo queda en la bitácora con quién lo hizo; la contraseña nunca se registra.
+
+### 2026-11-24 — Computadoras del muelle (#42)
+- `/superadmin/computadoras` con pestañas Pendientes / Aprobadas / Revocadas: quién la pidió, cuándo (nueva columna
+  `authorized_devices.requested_at`), muelle, quién la aprobó y último uso (`last_seen_at`).
+- Aprobar solo desde `PENDING`, con nombre y muelle (por defecto el del administrador que la pidió). La computadora de
+  un administrador no puede quedar «de oficina» (sin muelle), porque el login la rechazaría; la del superadministrador sí.
+- Revocar (o rechazar una solicitud) desde `PENDING` o `APPROVED`: borra en la misma transacción las sesiones abiertas
+  desde ella (además, `getCurrentUser` ya rechazaba sesiones de computadoras no aprobadas). Se puede renombrar mientras
+  no esté revocada. Todo condicional y en la bitácora.
+- `npm run dev:aprobar-computadoras` queda solo para desarrollo; acepta un correo para aprobar solo las de esa cuenta
+  (lo usan las pruebas de navegador, que corren en paralelo).
