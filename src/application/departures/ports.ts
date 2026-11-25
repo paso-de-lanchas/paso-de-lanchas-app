@@ -1,4 +1,4 @@
-import type { DepartureStatus } from "@/domain/departures/departure-state";
+﻿import type { DepartureStatus } from "@/domain/departures/departure-state";
 import type { VesselKind } from "@/domain/fleet/vessel";
 
 export interface DockSummary {
@@ -154,7 +154,7 @@ export interface DepartureUnitOfWork {
     params: { boardingId: string; cancelReason: string },
   ): Promise<void>;
   creditWalletRefund(tx: unknown, input: RefundPassengerInput): Promise<void>;
-  recordCashRefund?(tx: unknown, input: CashRefundRecordInput): Promise<void>;
+  recordCashRefund(tx: unknown, input: CashRefundRecordInput): Promise<void>;
   createNotification(tx: unknown, input: CreateNotificationInput): Promise<void>;
   markDepartureFinished(
     tx: unknown,
@@ -169,9 +169,25 @@ export interface DepartureRepository {
   findEligibleVessel(vesselId: string): Promise<EligibleVessel | null>;
   listEligibleVessels(): Promise<EligibleVessel[]>;
   listDeparturesByDock(dockId: string): Promise<DepartureRecord[]>;
+  findActiveDepartureByVessel(vesselId: string): Promise<DepartureRecord | null>;
   findDepartureById(departureId: string): Promise<DepartureRecord | null>;
   findActiveBoardingByDock(dockId: string): Promise<DepartureRecord | null>;
   createDeparture(data: CreateDepartureData): Promise<DepartureRecord>;
+  enqueueDepartureInTx(params: {
+    vesselId: string;
+    driverId: string | null;
+    originDockId: string;
+    destinationDockId: string;
+    passengerCapacity: number;
+    vehicleCapacities: Array<{ vehicleTypeId: number; capacity: number }>;
+    startedAt: Date;
+  }): Promise<DepartureRecord>;
+  startNextBoardingInTx(params: {
+    dockId: string;
+    startedAt: Date;
+    pickNext: (queued: DepartureRecord[]) => DepartureRecord | null;
+    reorderRemaining: (remaining: DepartureRecord[]) => Array<{ id: string; queuePosition: number }>;
+  }): Promise<DepartureRecord | null>;
   updateDepartureStatus(params: {
     departureId: string;
     fromStatus: DepartureStatus;
@@ -186,8 +202,6 @@ export interface DepartureRepository {
   ): Promise<void>;
   listWaitlistByDock(dockId: string): Promise<WaitlistEntryRecord[]>;
   createWaitlistEntry(data: CreateWaitlistEntryData): Promise<WaitlistEntryRecord>;
-  findBoardingForUpdate(tx: unknown, dockId: string): Promise<DepartureRecord | null>;
-  occupySeat(tx: unknown, departureId: string): Promise<number>;
   listBoardingsByDepartureId?(departureId: string): Promise<DepartureBoardingItem[]>;
   unitOfWork: DepartureUnitOfWork;
 }

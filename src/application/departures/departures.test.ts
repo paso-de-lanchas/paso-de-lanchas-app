@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+﻿import { describe, expect, it, vi } from "vitest";
 import { DomainError } from "@/domain/shared/domain-error";
-import type { Clock } from "@/application/shared/ports";
+import type { AuditLogger, Clock } from "@/application/shared/ports";
 import { createAddToWaitlist } from "./add-to-waitlist";
 import { createCloseBoarding } from "./close-boarding";
 import { createEnqueueDeparture } from "./enqueue-departure";
@@ -16,6 +16,12 @@ import { createReorderQueue } from "./reorder-queue";
 const fixedClock: Clock = {
   now: () => new Date("2026-11-23T18:00:00.000Z"),
 };
+
+function createFakeAuditLogger(): AuditLogger {
+  return {
+    log: vi.fn(async () => {}),
+  };
+}
 
 function makeDeparture(overrides: Partial<DepartureRecord> & { id: string }): DepartureRecord {
   return {
@@ -68,6 +74,17 @@ function createFakeRepo(params?: {
     listDeparturesByDock: vi.fn(async (dockId: string) =>
       departures.filter((d) => d.originDockId === dockId),
     ),
+    findActiveDepartureByVessel: vi.fn(
+      async (vesselId: string) =>
+        departures.find(
+          (d) =>
+            d.vesselId === vesselId &&
+            (d.status === "QUEUED" ||
+              d.status === "BOARDING" ||
+              d.status === "BOARDING_CLOSED" ||
+              d.status === "IN_TRANSIT"),
+        ) ?? null,
+    ),
     findDepartureById: vi.fn(async (id: string) => departures.find((d) => d.id === id) ?? null),
     findActiveBoardingByDock: vi.fn(
       async (dockId: string) =>
@@ -94,6 +111,60 @@ function createFakeRepo(params?: {
       });
       departures.push(rec);
       return rec;
+    }),
+    enqueueDepartureInTx: vi.fn(async (data) => {
+      const hasBoarding = departures.some(
+        (d) => d.originDockId === data.originDockId && d.status === "BOARDING",
+      );
+      const queuedCount = departures.filter(
+        (d) => d.originDockId === data.originDockId && d.status === "QUEUED",
+      ).length;
+      const promoteToBoarding = !hasBoarding && queuedCount === 0;
+      const rec = makeDeparture({
+        id: `dep-${departures.length + 1}`,
+        vesselId: data.vesselId,
+        driverId: data.driverId,
+        originDockId: data.originDockId,
+        destinationDockId: data.destinationDockId,
+        status: promoteToBoarding ? "BOARDING" : "QUEUED",
+        queuePosition: promoteToBoarding ? null : queuedCount + 1,
+        passengerCapacity: data.passengerCapacity,
+        boardingStartedAt: promoteToBoarding ? data.startedAt : null,
+        vehicleCapacities: data.vehicleCapacities.map(
+          (vc: { vehicleTypeId: number; capacity: number }) => ({
+            vehicleTypeId: vc.vehicleTypeId,
+            capacity: vc.capacity,
+            occupied: 0,
+          }),
+        ),
+      });
+      departures.push(rec);
+      return rec;
+    }),
+    startNextBoardingInTx: vi.fn(async ({ dockId, startedAt, pickNext, reorderRemaining }) => {
+      const hasBoarding = departures.some(
+        (d) => d.originDockId === dockId && d.status === "BOARDING",
+      );
+      if (hasBoarding) return null;
+      const queued = departures.filter((d) => d.originDockId === dockId && d.status === "QUEUED");
+      const next = pickNext(queued);
+      if (!next) return null;
+      const idx = departures.findIndex((d) => d.id === next.id);
+      const updated = makeDeparture({
+        ...departures[idx],
+        status: "BOARDING",
+        queuePosition: null,
+        boardingStartedAt: startedAt,
+      });
+      departures[idx] = updated;
+      const remaining = queued.filter((d) => d.id !== next.id);
+      for (const pos of reorderRemaining(remaining)) {
+        const rIdx = departures.findIndex((d) => d.id === pos.id);
+        if (rIdx >= 0) {
+          departures[rIdx] = { ...departures[rIdx], queuePosition: pos.queuePosition };
+        }
+      }
+      return updated;
     }),
     updateDepartureStatus: vi.fn(async (upd) => {
       const idx = departures.findIndex((d) => d.id === upd.departureId);
@@ -139,14 +210,13 @@ function createFakeRepo(params?: {
         createdAt: fixedClock.now(),
       }),
     ),
-    findBoardingForUpdate: vi.fn(async () => null),
-    occupySeat: vi.fn(async () => 1),
     unitOfWork: {
-      run: async <T>(work: (tx: unknown) => Promise<T>): Promise<T> => work({}),
+      run: async (work) => work({}),
       markDepartureCancelled: vi.fn(),
       listBoardingsForDeparture: vi.fn().mockResolvedValue([]),
       markBoardingCancelled: vi.fn(),
       creditWalletRefund: vi.fn(),
+      recordCashRefund: vi.fn(),
       createNotification: vi.fn(),
       markDepartureFinished: vi.fn(),
       createReturnQueuedDeparture: vi.fn(),
@@ -157,22 +227,25 @@ function createFakeRepo(params?: {
 describe("departures use cases", () => {
   it("encola una salida copiando capacidad y pasa sola a BOARDING si no hay abordando", async () => {
     const repo = createFakeRepo();
-    const enqueue = createEnqueueDeparture(repo, fixedClock);
+    const audit = createFakeAuditLogger();
+    const enqueue = createEnqueueDeparture(repo, fixedClock, audit);
 
     const dep = await enqueue({
       vesselId: "vessel-1",
       originDockId: "dock-coa",
       destinationDockId: "dock-val",
       actorUserId: "admin-1",
+      actorDockId: "dock-coa",
     });
 
     expect(dep.status).toBe("BOARDING");
     expect(dep.passengerCapacity).toBe(120);
     expect(dep.vehicleCapacities).toEqual([{ vehicleTypeId: 1, capacity: 12, occupied: 0 }]);
     expect(dep.boardingStartedAt).toEqual(fixedClock.now());
+    expect(audit.log).toHaveBeenCalled();
   });
 
-  it("impide encolar embarcaciÃƒÆ’Ã‚Â³n sin chofer asignado o con muelle de otro admin", async () => {
+  it("impide encolar embarcación sin chofer asignado o con muelle de otro admin", async () => {
     const repoSinChofer = createFakeRepo({
       vessel: {
         id: "vessel-2",
@@ -185,7 +258,11 @@ describe("departures use cases", () => {
         vehicleCapacities: [],
       },
     });
-    const enqueueSinChofer = createEnqueueDeparture(repoSinChofer, fixedClock);
+    const enqueueSinChofer = createEnqueueDeparture(
+      repoSinChofer,
+      fixedClock,
+      createFakeAuditLogger(),
+    );
 
     await expect(
       enqueueSinChofer({
@@ -193,10 +270,15 @@ describe("departures use cases", () => {
         originDockId: "dock-coa",
         destinationDockId: "dock-val",
         actorUserId: "admin-1",
+        actorDockId: "dock-coa",
       }),
     ).rejects.toThrow(DomainError);
 
-    const enqueueOtroMuelle = createEnqueueDeparture(createFakeRepo(), fixedClock);
+    const enqueueOtroMuelle = createEnqueueDeparture(
+      createFakeRepo(),
+      fixedClock,
+      createFakeAuditLogger(),
+    );
     await expect(
       enqueueOtroMuelle({
         vesselId: "vessel-1",
@@ -223,11 +305,12 @@ describe("departures use cases", () => {
         }),
       ],
     });
-    const closeBoarding = createCloseBoarding(repo, fixedClock);
+    const closeBoarding = createCloseBoarding(repo, fixedClock, createFakeAuditLogger());
 
     const res = await closeBoarding({
       departureId: "dep-1",
       actorUserId: "admin-1",
+      actorDockId: "dock-coa",
     });
 
     expect(res.closed.status).toBe("BOARDING_CLOSED");
@@ -242,38 +325,45 @@ describe("departures use cases", () => {
         makeDeparture({ id: "dep-b", status: "QUEUED", queuePosition: 2 }),
       ],
     });
-    const reorder = createReorderQueue(repo);
+    const reorder = createReorderQueue(repo, createFakeAuditLogger());
     await reorder({
       dockId: "dock-coa",
       orderedDepartureIds: ["dep-b", "dep-a"],
       actorUserId: "admin-1",
+      actorDockId: "dock-coa",
     });
     expect(repo.applyQueuePositions).toHaveBeenCalledWith("dock-coa", [
       { id: "dep-b", queuePosition: 1 },
       { id: "dep-a", queuePosition: 2 },
     ]);
 
-    const addWaitlist = createAddToWaitlist(repo, fixedClock);
+    const addWaitlist = createAddToWaitlist(repo, fixedClock, createFakeAuditLogger());
     const entry = await addWaitlist({
       dockId: "dock-coa",
-      label: "Juan PÃƒÆ’Ã‚Â©rez",
+      label: "Juan Pérez",
       actorUserId: "admin-1",
+      actorDockId: "dock-coa",
     });
-    expect(entry.label).toBe("Juan PÃƒÆ’Ã‚Â©rez");
+    expect(entry.label).toBe("Juan Pérez");
     expect(entry.status).toBe("WAITING");
   });
 
-  it("impide registrar en lista de espera si ya hay una embarcaciÃƒÆ’Ã‚Â³n abordando", async () => {
+  it("impide registrar en lista de espera si ya hay una embarcación abordando", async () => {
     const repoConAbordaje = createFakeRepo({
       departures: [makeDeparture({ id: "dep-1", status: "BOARDING", queuePosition: null })],
     });
-    const addWaitlist = createAddToWaitlist(repoConAbordaje, fixedClock);
+    const addWaitlist = createAddToWaitlist(
+      repoConAbordaje,
+      fixedClock,
+      createFakeAuditLogger(),
+    );
 
     await expect(
       addWaitlist({
         dockId: "dock-coa",
-        label: "Ana LÃƒÆ’Ã‚Â³pez",
+        label: "Ana López",
         actorUserId: "admin-1",
+        actorDockId: "dock-coa",
       }),
     ).rejects.toThrow(DomainError);
   });

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import type {
@@ -94,11 +94,11 @@ export function OperationClient({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+    <div className="space-y-6 text-ink">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-line bg-white p-4 shadow-xs">
         <div>
-          <p className="text-xs font-medium text-slate-500">Muelle de operación</p>
-          <p className="text-base font-semibold text-slate-900">
+          <p className="text-xs font-medium text-ink/60">Muelle de operación</p>
+          <p className="text-base font-semibold text-ink">
             {dockMap.get(selectedDockId) ?? selectedDockId}
           </p>
         </div>
@@ -110,8 +110,8 @@ export function OperationClient({
                 href={`/admin/operacion?dockId=${d.id}`}
                 className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
                   d.id === selectedDockId
-                    ? "bg-slate-900 text-white"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    ? "bg-brand text-white"
+                    : "bg-brand/10 text-ink hover:bg-brand/20"
                 }`}
               >
                 {d.code}
@@ -125,27 +125,27 @@ export function OperationClient({
         <div
           className={`rounded-lg border px-4 py-3 text-sm ${
             feedback.ok
-              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-              : "border-rose-200 bg-rose-50 text-rose-900"
+              ? "border-brand/30 bg-brand/10 text-ink"
+              : "border-line bg-ink/5 text-ink"
           }`}
         >
           {feedback.text}
         </div>
       )}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-        <h2 className="text-lg font-semibold text-slate-900">Salida abordando actualmente</h2>
+      <section className="rounded-xl border border-line bg-white p-5 shadow-xs">
+        <h2 className="text-lg font-semibold text-ink">Salida abordando actualmente</h2>
         {boarding ? (
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-4 rounded-lg bg-slate-50 p-4">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-line bg-ink/5 p-4">
             <div className="space-y-1">
-              <p className="font-medium text-slate-900">
+              <p className="font-medium text-ink">
                 {vesselMap.get(boarding.vesselId)?.code ?? boarding.vesselId} —{" "}
                 {vesselMap.get(boarding.vesselId)?.name ?? "Embarcación"}
               </p>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-ink/70">
                 Destino: {dockMap.get(boarding.destinationDockId) ?? boarding.destinationDockId}
               </p>
-              <p className="text-sm font-medium text-slate-800">
+              <p className="text-sm font-medium text-ink/85">
                 Ocupación: {boarding.occupiedSeats} / {boarding.passengerCapacity} lugares
               </p>
             </div>
@@ -153,30 +153,30 @@ export function OperationClient({
               type="button"
               disabled={isPending}
               onClick={() => handleCloseBoarding(boarding.id)}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
               Cerrar abordaje
             </button>
           </div>
         ) : (
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-ink/60">
             No hay ninguna embarcación abordando en este muelle.
           </p>
         )}
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-          <h2 className="text-lg font-semibold text-slate-900">Formar embarcación en fila</h2>
+        <section className="rounded-xl border border-line bg-white p-5 shadow-xs">
+          <h2 className="text-lg font-semibold text-ink">Formar embarcación en fila</h2>
           <form onSubmit={handleEnqueue} className="mt-4 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700">
+              <label className="block text-sm font-medium text-ink/85">
                 Embarcación (activa con chofer asignado)
               </label>
               <select
                 value={vesselId}
                 onChange={(e) => setVesselId(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink"
               >
                 {vessels.map((v) => (
                   <option key={v.id} value={v.id} disabled={!v.activeDriverId}>
@@ -188,11 +188,11 @@ export function OperationClient({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700">Muelle de destino</label>
+              <label className="block text-sm font-medium text-ink/85">Muelle de destino</label>
               <select
                 value={destinationDockId}
                 onChange={(e) => setDestinationDockId(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink"
               >
                 {docks
                   .filter((d) => d.id !== selectedDockId)
@@ -207,28 +207,28 @@ export function OperationClient({
             <button
               type="submit"
               disabled={isPending || !vesselId || !destinationDockId}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
               Agregar a la fila
             </button>
           </form>
 
-          <div className="mt-6 border-t border-slate-100 pt-4">
-            <h3 className="text-sm font-semibold text-slate-800">
+          <div className="mt-6 border-t border-line pt-4">
+            <h3 className="text-sm font-semibold text-ink">
               Fila de espera de embarcaciones ({queued.length})
             </h3>
             {queued.length === 0 ? (
-              <p className="mt-2 text-sm text-slate-500">No hay embarcaciones en fila.</p>
+              <p className="mt-2 text-sm text-ink/60">No hay embarcaciones en fila.</p>
             ) : (
-              <ul className="mt-3 divide-y divide-slate-100">
+              <ul className="mt-3 divide-y divide-line">
                 {queued.map((item, idx) => (
                   <li key={item.id} className="flex items-center justify-between py-2.5 text-sm">
                     <div>
-                      <span className="font-semibold text-slate-900">#{idx + 1}</span>{" "}
-                      <span className="text-slate-800">
+                      <span className="font-semibold text-ink">#{idx + 1}</span>{" "}
+                      <span className="text-ink/90">
                         {vesselMap.get(item.vesselId)?.code ?? item.vesselId}
                       </span>{" "}
-                      <span className="text-slate-500">
+                      <span className="text-ink/60">
                         → {dockMap.get(item.destinationDockId) ?? item.destinationDockId}
                       </span>
                     </div>
@@ -237,7 +237,7 @@ export function OperationClient({
                         type="button"
                         disabled={isPending || idx === 0}
                         onClick={() => handleMove(idx, -1)}
-                        className="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50 disabled:opacity-40"
+                        className="rounded border border-line px-2 py-1 text-xs text-ink hover:bg-ink/5 disabled:opacity-40"
                       >
                         Subir
                       </button>
@@ -245,7 +245,7 @@ export function OperationClient({
                         type="button"
                         disabled={isPending || idx === queued.length - 1}
                         onClick={() => handleMove(idx, 1)}
-                        className="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50 disabled:opacity-40"
+                        className="rounded border border-line px-2 py-1 text-xs text-ink hover:bg-ink/5 disabled:opacity-40"
                       >
                         Bajar
                       </button>
@@ -257,9 +257,9 @@ export function OperationClient({
           </div>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-          <h2 className="text-lg font-semibold text-slate-900">Lista de espera (sin cobro)</h2>
-          <p className="mt-1 text-xs text-slate-500">
+        <section className="rounded-xl border border-line bg-white p-5 shadow-xs">
+          <h2 className="text-lg font-semibold text-ink">Lista de espera (sin cobro)</h2>
+          <p className="mt-1 text-xs text-ink/60">
             Registra pasajeros por referencia de nombre sin realizar cobros.
           </p>
           <form onSubmit={handleAddWaitlist} className="mt-4 flex gap-2">
@@ -269,27 +269,27 @@ export function OperationClient({
               onChange={(e) => setWaitlistLabel(e.target.value)}
               placeholder="Nombre del pasajero"
               maxLength={80}
-              className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="flex-1 rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink"
             />
             <button
               type="submit"
               disabled={isPending || !waitlistLabel.trim()}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
               Registrar
             </button>
           </form>
 
-          <ul className="mt-5 divide-y divide-slate-100">
+          <ul className="mt-5 divide-y divide-line">
             {waitlist.length === 0 ? (
-              <li className="py-3 text-sm text-slate-500">No hay pasajeros en lista de espera.</li>
+              <li className="py-3 text-sm text-ink/60">No hay pasajeros en lista de espera.</li>
             ) : (
               waitlist.map((entry) => (
                 <li key={entry.id} className="flex items-center justify-between py-2.5 text-sm">
-                  <span className="font-medium text-slate-800">
+                  <span className="font-medium text-ink/90">
                     {entry.label ?? entry.passengerId ?? "Pasajero"}
                   </span>
-                  <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                  <span className="rounded bg-ink/5 px-2 py-0.5 text-xs text-ink/70">
                     {entry.status}
                   </span>
                 </li>

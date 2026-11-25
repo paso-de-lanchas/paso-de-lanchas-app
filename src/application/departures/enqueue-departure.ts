@@ -1,43 +1,41 @@
+﻿import { z } from "zod";
 import { DomainError } from "@/domain/shared/domain-error";
 import type { AuditLogger, Clock } from "@/application/shared/ports";
 import type { DepartureRecord, DepartureRepository } from "./ports";
-import { createStartNextBoarding } from "./start-next-boarding";
 
-export interface EnqueueDepartureInput {
-  vesselId: string;
-  originDockId: string;
-  destinationDockId: string;
-  actorUserId: string;
-  actorDockId?: string | null;
-}
+const enqueueDepartureSchema = z.object({
+  vesselId: z.string().trim().min(1),
+  originDockId: z.string().trim().min(1),
+  destinationDockId: z.string().trim().min(1),
+  actorUserId: z.string().trim().min(1),
+  actorDockId: z.string().trim().min(1).nullable().optional(),
+});
+
+export type EnqueueDepartureInput = z.infer<typeof enqueueDepartureSchema>;
 
 export function createEnqueueDeparture(
   repo: DepartureRepository,
   clock: Clock,
-  auditLogger?: AuditLogger,
+  auditLogger: AuditLogger,
 ) {
-  const startNextBoarding = createStartNextBoarding(repo, clock, auditLogger);
-
   return async function enqueueDeparture(input: EnqueueDepartureInput): Promise<DepartureRecord> {
-    const vesselId = input.vesselId.trim();
-    const originDockId = input.originDockId.trim();
-    const destinationDockId = input.destinationDockId.trim();
-
-    if (!vesselId || !originDockId || !destinationDockId) {
+    const parsedResult = enqueueDepartureSchema.safeParse(input);
+    if (!parsedResult.success) {
       throw new DomainError(
         "INVALID_DEPARTURE_INPUT",
-        "La embarcación, el muelle de origen y el muelle de destino son obligatorios.",
+        "Los datos de la salida son inválidos o incompletos.",
       );
     }
+    const parsed = parsedResult.data;
 
-    if (input.actorDockId && input.actorDockId !== originDockId) {
+    if (!parsed.actorDockId || parsed.actorDockId !== parsed.originDockId) {
       throw new DomainError(
         "DOCK_ACCESS_DENIED",
-        "Solo puedes operar salidas desde tu muelle asignado.",
+        "Debes tener un muelle asignado y operar únicamente desde tu muelle.",
       );
     }
 
-    if (originDockId === destinationDockId) {
+    if (parsed.originDockId === parsed.destinationDockId) {
       throw new DomainError(
         "SAME_ORIGIN_DESTINATION_DOCK",
         "El muelle de origen y el muelle de destino deben ser distintos.",
@@ -45,15 +43,15 @@ export function createEnqueueDeparture(
     }
 
     const [originDock, destDock] = await Promise.all([
-      repo.findDockById(originDockId),
-      repo.findDockById(destinationDockId),
+      repo.findDockById(parsed.originDockId),
+      repo.findDockById(parsed.destinationDockId),
     ]);
 
     if (!originDock || !destDock) {
       throw new DomainError("DOCK_NOT_FOUND", "No se encontró el muelle de origen o destino.");
     }
 
-    const vessel = await repo.findEligibleVessel(vesselId);
+    const vessel = await repo.findEligibleVessel(parsed.vesselId);
     if (!vessel) {
       throw new DomainError("VESSEL_NOT_FOUND", "No se encontró la embarcación indicada.");
     }
@@ -72,59 +70,55 @@ export function createEnqueueDeparture(
       );
     }
 
-    const existingDepartures = await repo.listDeparturesByDock(originDockId);
-    const activeInDock = existingDepartures.filter(
-      (d) =>
-        d.vesselId === vessel.id &&
-        (d.status === "QUEUED" ||
-          d.status === "BOARDING" ||
-          d.status === "BOARDING_CLOSED" ||
-          d.status === "IN_TRANSIT"),
-    );
-    if (activeInDock.length > 0) {
+    const activeElsewhere = await repo.findActiveDepartureByVessel(vessel.id);
+    if (activeElsewhere) {
       throw new DomainError(
         "VESSEL_ALREADY_IN_OPERATION",
-        "La embarcación ya tiene una salida activa o en fila.",
+        "La embarcación ya tiene una salida activa o en fila en algún muelle.",
       );
     }
 
-    const queued = existingDepartures.filter((d) => d.status === "QUEUED");
-    const nextPosition = queued.length + 1;
     const now = clock.now();
 
-    const created = await repo.createDeparture({
+    const created = await repo.enqueueDepartureInTx({
       vesselId: vessel.id,
       driverId: vessel.activeDriverId,
-      originDockId,
-      destinationDockId,
-      status: "QUEUED",
-      queuePosition: nextPosition,
+      originDockId: parsed.originDockId,
+      destinationDockId: parsed.destinationDockId,
       passengerCapacity: vessel.passengerCapacity,
-      boardingStartedAt: null,
       vehicleCapacities: vessel.kind === "FERRY" ? vessel.vehicleCapacities : [],
+      startedAt: now,
     });
 
-    if (auditLogger) {
+    await auditLogger.log({
+      userId: parsed.actorUserId,
+      action: "DEPARTURE_ENQUEUED",
+      entity: "departures",
+      entityId: created.id,
+      details: {
+        vesselId: vessel.id,
+        driverId: vessel.activeDriverId,
+        originDockId: parsed.originDockId,
+        destinationDockId: parsed.destinationDockId,
+        status: created.status,
+        queuePosition: created.queuePosition,
+        passengerCapacity: vessel.passengerCapacity,
+        timestamp: now.toISOString(),
+      },
+    });
+
+    if (created.status === "BOARDING") {
       await auditLogger.log({
-        userId: input.actorUserId,
-        action: "DEPARTURE_ENQUEUED",
+        userId: parsed.actorUserId,
+        action: "DEPARTURE_BOARDING_STARTED",
         entity: "departures",
         entityId: created.id,
         details: {
-          vesselId: vessel.id,
-          driverId: vessel.activeDriverId,
-          originDockId,
-          destinationDockId,
-          queuePosition: nextPosition,
-          passengerCapacity: vessel.passengerCapacity,
-          timestamp: now.toISOString(),
+          dockId: parsed.originDockId,
+          vesselId: created.vesselId,
+          startedAt: now.toISOString(),
         },
       });
-    }
-
-    const started = await startNextBoarding(originDockId, input.actorUserId);
-    if (started && started.id === created.id) {
-      return started;
     }
 
     return created;

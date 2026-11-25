@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/auth/require-role";
+﻿import { requireRole } from "@/lib/auth/require-role";
 import { prisma } from "@/infrastructure/db/prisma";
 import { PrismaDepartureRepository } from "@/infrastructure/departures/prisma-departure-repository";
 import { OperationClient } from "./operation-client";
@@ -38,10 +38,10 @@ export default async function OperacionPage({ searchParams }: OperacionPageProps
   const queued = departures.filter((d) => d.status === "QUEUED");
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 p-6">
+    <main className="mx-auto max-w-6xl space-y-6 p-6 text-ink">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Operación del muelle</h1>
-        <p className="text-sm text-slate-600">
+        <h1 className="text-2xl font-bold text-ink">Operación del muelle</h1>
+        <p className="text-sm text-ink/70">
           Gestión de fila de embarcaciones, apertura/cierre de abordaje y lista de espera.
         </p>
       </div>
@@ -57,7 +57,7 @@ export default async function OperacionPage({ searchParams }: OperacionPageProps
           waitlist={waitlist}
         />
       ) : (
-        <p className="text-sm text-slate-500">No hay muelles configurados en el sistema.</p>
+        <p className="text-sm text-ink/60">No hay muelles configurados en el sistema.</p>
       )}
     </main>
   );

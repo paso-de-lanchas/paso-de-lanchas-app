@@ -1,9 +1,10 @@
-import { Prisma, type PrismaClient } from "@/generated/prisma/client";
+﻿import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { DomainError } from "@/domain/shared/domain-error";
 import { Money } from "@/domain/shared/money";
 import type { DepartureStatus } from "@/domain/departures/departure-state";
 import type { VesselKind } from "@/domain/fleet/vessel";
 import type {
+  CashRefundRecordInput,
   CreateDepartureData,
   CreateNotificationInput,
   CreateWaitlistEntryData,
@@ -21,11 +22,26 @@ import type {
 type TxClient = Prisma.TransactionClient | PrismaClient;
 
 function asTx(tx: unknown, fallback: PrismaClient): TxClient {
-  if (tx && typeof tx === "object" && "$queryRaw" in tx) {
-    return tx as TxClient;
-  }
-  return fallback;
+  return (tx as TxClient | undefined) ?? fallback;
 }
+
+const ACTIVE_DEPARTURE_STATUSES: DepartureStatus[] = [
+  "QUEUED",
+  "BOARDING",
+  "BOARDING_CLOSED",
+  "IN_TRANSIT",
+];
+
+const departureInclude = {
+  vehicleCapacity: {
+    select: {
+      vehicleTypeId: true,
+      capacity: true,
+      occupied: true,
+    },
+    orderBy: { vehicleTypeId: "asc" as const },
+  },
+};
 
 function toDepartureRecord(row: {
   id: string;
@@ -97,16 +113,9 @@ function toWaitlistRecord(row: {
   };
 }
 
-const departureInclude = {
-  vehicleCapacity: {
-    select: {
-      vehicleTypeId: true,
-      capacity: true,
-      occupied: true,
-    },
-    orderBy: { vehicleTypeId: "asc" as const },
-  },
-};
+async function lockDock(tx: Prisma.TransactionClient, dockId: string): Promise<void> {
+  await tx.$executeRaw`SELECT id FROM docks WHERE id = ${dockId}::uuid FOR UPDATE`;
+}
 
 export class PrismaDepartureRepository implements DepartureRepository {
   readonly unitOfWork: DepartureUnitOfWork;
@@ -153,14 +162,14 @@ export class PrismaDepartureRepository implements DepartureRepository {
         if (updated.count === 0) {
           throw new DomainError(
             "DEPARTURE_CONFLICT",
-            "El estado de la salida cambiÃ³ de forma concurrente al intentar cancelarla.",
+            "El estado de la salida cambió de forma concurrente al intentar cancelarla.",
           );
         }
         const record = await this.findDepartureByIdWithClient(client, params.departureId);
         if (!record) {
           throw new DomainError(
             "DEPARTURE_NOT_FOUND",
-            "No se encontrÃ³ la salida tras cancelarla.",
+            "No se encontró la salida tras cancelarla.",
           );
         }
         return record;
@@ -220,7 +229,7 @@ export class PrismaDepartureRepository implements DepartureRepository {
         if (!wallet) {
           throw new DomainError(
             "WALLET_NOT_FOUND",
-            "No se encontrÃ³ el monedero del pasajero para reembolsar.",
+            "No se encontró el monedero del pasajero para reembolsar.",
           );
         }
 
@@ -259,19 +268,7 @@ export class PrismaDepartureRepository implements DepartureRepository {
         });
       },
 
-      recordCashRefund: async (
-        tx: unknown,
-        input: {
-          boardingId: string;
-          saleId: string;
-          departureId: string | null;
-          passengerId: string | null;
-          seatNumber: number;
-          amountPesos: string;
-          reason: string;
-          performedById: string;
-        },
-      ): Promise<void> => {
+      recordCashRefund: async (tx: unknown, input: CashRefundRecordInput): Promise<void> => {
         const client = asTx(tx, this.prisma);
         await client.auditLog.create({
           data: {
@@ -335,7 +332,7 @@ export class PrismaDepartureRepository implements DepartureRepository {
         }
         const record = await this.findDepartureByIdWithClient(client, params.departureId);
         if (!record) {
-          throw new DomainError("DEPARTURE_NOT_FOUND", "No se encontrÃ³ la salida finalizada.");
+          throw new DomainError("DEPARTURE_NOT_FOUND", "No se encontró la salida finalizada.");
         }
         return record;
       },
@@ -459,11 +456,26 @@ export class PrismaDepartureRepository implements DepartureRepository {
 
   async listDeparturesByDock(dockId: string): Promise<DepartureRecord[]> {
     const rows = await this.prisma.departure.findMany({
-      where: { originDockId: dockId },
+      where: {
+        originDockId: dockId,
+        status: { in: ACTIVE_DEPARTURE_STATUSES },
+      },
       include: departureInclude,
       orderBy: [{ queuePosition: "asc" }, { createdAt: "asc" }],
     });
     return rows.map(toDepartureRecord);
+  }
+
+  async findActiveDepartureByVessel(vesselId: string): Promise<DepartureRecord | null> {
+    const row = await this.prisma.departure.findFirst({
+      where: {
+        vesselId,
+        status: { in: ACTIVE_DEPARTURE_STATUSES },
+      },
+      orderBy: { createdAt: "desc" },
+      include: departureInclude,
+    });
+    return row ? toDepartureRecord(row) : null;
   }
 
   async findDepartureById(departureId: string): Promise<DepartureRecord | null> {
@@ -486,28 +498,178 @@ export class PrismaDepartureRepository implements DepartureRepository {
   }
 
   async createDeparture(data: CreateDepartureData): Promise<DepartureRecord> {
-    const created = await this.prisma.departure.create({
-      data: {
-        vesselId: data.vesselId,
-        driverId: data.driverId,
-        originDockId: data.originDockId,
-        destinationDockId: data.destinationDockId,
-        status: data.status,
-        queuePosition: data.queuePosition,
-        passengerCapacity: data.passengerCapacity,
-        returnOfId: data.returnOfId ?? null,
-        boardingStartedAt: data.boardingStartedAt,
-        vehicleCapacity: {
-          create: data.vehicleCapacities.map((vc) => ({
-            vehicleTypeId: vc.vehicleTypeId,
-            capacity: vc.capacity,
-            occupied: 0,
-          })),
+    const created = await this.prisma.$transaction(async (tx) => {
+      await lockDock(tx, data.originDockId);
+      const existingBoarding = await tx.departure.findFirst({
+        where: { originDockId: data.originDockId, status: "BOARDING" },
+        select: { id: true },
+      });
+      if (data.status === "BOARDING" && existingBoarding) {
+        throw new DomainError(
+          "BOARDING_ALREADY_ACTIVE",
+          "Ya existe una salida abordando en este muelle.",
+        );
+      }
+      return tx.departure.create({
+        data: {
+          vesselId: data.vesselId,
+          driverId: data.driverId,
+          originDockId: data.originDockId,
+          destinationDockId: data.destinationDockId,
+          status: data.status,
+          queuePosition: data.queuePosition,
+          passengerCapacity: data.passengerCapacity,
+          returnOfId: data.returnOfId ?? null,
+          boardingStartedAt: data.boardingStartedAt,
+          vehicleCapacity:
+            data.vehicleCapacities.length > 0
+              ? {
+                  create: data.vehicleCapacities.map((vc) => ({
+                    vehicleTypeId: vc.vehicleTypeId,
+                    capacity: vc.capacity,
+                    occupied: 0,
+                  })),
+                }
+              : undefined,
         },
-      },
-      include: departureInclude,
+        include: departureInclude,
+      });
     });
     return toDepartureRecord(created);
+  }
+
+  async enqueueDepartureInTx(params: {
+    vesselId: string;
+    driverId: string | null;
+    originDockId: string;
+    destinationDockId: string;
+    passengerCapacity: number;
+    vehicleCapacities: Array<{ vehicleTypeId: number; capacity: number }>;
+    startedAt: Date;
+  }): Promise<DepartureRecord> {
+    const created = await this.prisma.$transaction(async (tx) => {
+      await lockDock(tx, params.originDockId);
+
+      const activeVessel = await tx.departure.findFirst({
+        where: {
+          vesselId: params.vesselId,
+          status: { in: ACTIVE_DEPARTURE_STATUSES },
+        },
+        select: { id: true },
+      });
+      if (activeVessel) {
+        throw new DomainError(
+          "VESSEL_ALREADY_IN_OPERATION",
+          "La embarcación ya tiene una salida activa o en fila en algún muelle.",
+        );
+      }
+
+      const queuedCount = await tx.departure.count({
+        where: { originDockId: params.originDockId, status: "QUEUED" },
+      });
+      const nextPosition = queuedCount + 1;
+
+      const row = await tx.departure.create({
+        data: {
+          vesselId: params.vesselId,
+          driverId: params.driverId,
+          originDockId: params.originDockId,
+          destinationDockId: params.destinationDockId,
+          status: "QUEUED",
+          queuePosition: nextPosition,
+          passengerCapacity: params.passengerCapacity,
+          boardingStartedAt: null,
+          vehicleCapacity:
+            params.vehicleCapacities.length > 0
+              ? {
+                  create: params.vehicleCapacities.map((vc) => ({
+                    vehicleTypeId: vc.vehicleTypeId,
+                    capacity: vc.capacity,
+                    occupied: 0,
+                  })),
+                }
+              : undefined,
+        },
+        include: departureInclude,
+      });
+
+      const activeBoarding = await tx.departure.findFirst({
+        where: { originDockId: params.originDockId, status: "BOARDING" },
+        select: { id: true },
+      });
+
+      if (!activeBoarding && row.queuePosition === 1) {
+        return tx.departure.update({
+          where: { id: row.id },
+          data: {
+            status: "BOARDING",
+            queuePosition: null,
+            boardingStartedAt: params.startedAt,
+            version: { increment: 1 },
+          },
+          include: departureInclude,
+        });
+      }
+
+      return row;
+    });
+
+    return toDepartureRecord(created);
+  }
+
+  async startNextBoardingInTx(params: {
+    dockId: string;
+    startedAt: Date;
+    pickNext: (queued: DepartureRecord[]) => DepartureRecord | null;
+    reorderRemaining: (remaining: DepartureRecord[]) => Array<{ id: string; queuePosition: number }>;
+  }): Promise<DepartureRecord | null> {
+    return this.prisma.$transaction(async (tx) => {
+      await lockDock(tx, params.dockId);
+
+      const currentBoarding = await tx.departure.findFirst({
+        where: { originDockId: params.dockId, status: "BOARDING" },
+        select: { id: true },
+      });
+      if (currentBoarding) {
+        return null;
+      }
+
+      const queuedRows = await tx.departure.findMany({
+        where: { originDockId: params.dockId, status: "QUEUED" },
+        orderBy: [{ queuePosition: "asc" }, { createdAt: "asc" }],
+        include: departureInclude,
+      });
+
+      const queued = queuedRows.map(toDepartureRecord);
+      const next = params.pickNext(queued);
+      if (!next) {
+        return null;
+      }
+
+      const updated = await tx.departure.update({
+        where: { id: next.id },
+        data: {
+          status: "BOARDING",
+          queuePosition: null,
+          boardingStartedAt: params.startedAt,
+          version: { increment: 1 },
+        },
+        include: departureInclude,
+      });
+
+      const remaining = queued.filter((item) => item.id !== next.id);
+      if (remaining.length > 0) {
+        const reordered = params.reorderRemaining(remaining);
+        for (const item of reordered) {
+          await tx.departure.updateMany({
+            where: { id: item.id, originDockId: params.dockId, status: "QUEUED" },
+            data: { queuePosition: item.queuePosition, version: { increment: 1 } },
+          });
+        }
+      }
+
+      return toDepartureRecord(updated);
+    });
   }
 
   async updateDepartureStatus(params: {
@@ -518,39 +680,54 @@ export class PrismaDepartureRepository implements DepartureRepository {
     boardingStartedAt?: Date | null;
     boardingClosedAt?: Date | null;
   }): Promise<DepartureRecord> {
-    const updated = await this.prisma.departure.updateMany({
-      where: {
-        id: params.departureId,
-        status: params.fromStatus,
-      },
-      data: {
-        status: params.toStatus,
-        queuePosition: params.queuePosition,
-        ...(params.boardingStartedAt !== undefined
-          ? { boardingStartedAt: params.boardingStartedAt }
-          : {}),
-        ...(params.boardingClosedAt !== undefined
-          ? { boardingClosedAt: params.boardingClosedAt }
-          : {}),
-        version: { increment: 1 },
-      },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const current = await tx.departure.findUnique({
+        where: { id: params.departureId },
+      });
+      if (!current) {
+        throw new DomainError("DEPARTURE_NOT_FOUND", "No se encontró la salida indicada.");
+      }
+      await lockDock(tx, current.originDockId);
 
-    if (updated.count === 0) {
-      throw new DomainError(
-        "DEPARTURE_CONFLICT",
-        "No se pudo actualizar el estado de la salida por un cambio concurrente.",
-      );
-    }
-
-    const row = await this.prisma.departure.findUnique({
-      where: { id: params.departureId },
-      include: departureInclude,
+      if (current.status !== params.fromStatus) {
+        throw new DomainError(
+          "CONCURRENT_DEPARTURE_UPDATE",
+          "El estado de la salida cambió de forma concurrente.",
+        );
+      }
+      if (params.toStatus === "BOARDING") {
+        const anotherBoarding = await tx.departure.findFirst({
+          where: {
+            originDockId: current.originDockId,
+            status: "BOARDING",
+            id: { not: current.id },
+          },
+          select: { id: true },
+        });
+        if (anotherBoarding) {
+          throw new DomainError(
+            "BOARDING_ALREADY_ACTIVE",
+            "Ya hay otra embarcación abordando en el muelle.",
+          );
+        }
+      }
+      const updated = await tx.departure.update({
+        where: { id: params.departureId, version: current.version },
+        data: {
+          status: params.toStatus,
+          queuePosition: params.queuePosition,
+          version: { increment: 1 },
+          ...(params.boardingStartedAt !== undefined
+            ? { boardingStartedAt: params.boardingStartedAt }
+            : {}),
+          ...(params.boardingClosedAt !== undefined
+            ? { boardingClosedAt: params.boardingClosedAt }
+            : {}),
+        },
+        include: departureInclude,
+      });
+      return toDepartureRecord(updated);
     });
-    if (!row) {
-      throw new DomainError("DEPARTURE_NOT_FOUND", "No se encontrÃ³ la salida actualizada.");
-    }
-    return toDepartureRecord(row);
   }
 
   async applyQueuePositions(
@@ -558,15 +735,16 @@ export class PrismaDepartureRepository implements DepartureRepository {
     positions: Array<{ id: string; queuePosition: number }>,
   ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      for (const pos of positions) {
+      await lockDock(tx, dockId);
+      for (const item of positions) {
         await tx.departure.updateMany({
           where: {
-            id: pos.id,
+            id: item.id,
             originDockId: dockId,
             status: "QUEUED",
           },
           data: {
-            queuePosition: pos.queuePosition,
+            queuePosition: item.queuePosition,
             version: { increment: 1 },
           },
         });
@@ -593,99 +771,6 @@ export class PrismaDepartureRepository implements DepartureRepository {
       },
     });
     return toWaitlistRecord(created);
-  }
-
-  async findBoardingForUpdate(tx: unknown, dockId: string): Promise<DepartureRecord | null> {
-    const client = asTx(tx, this.prisma);
-    const rows = await client.$queryRaw<Array<{ id: string }>>`
-      SELECT id
-      FROM departures
-      WHERE origin_dock_id = ${dockId}::uuid
-        AND status = 'BOARDING'
-      ORDER BY created_at ASC
-      LIMIT 1
-      FOR UPDATE
-    `;
-    if (rows.length === 0) return null;
-    return this.findDepartureByIdWithClient(client, rows[0].id);
-  }
-
-  async occupySeat(tx: unknown, departureId: string): Promise<number> {
-    const client = asTx(tx, this.prisma);
-    const rows = await client.$queryRaw<
-      Array<{
-        id: string;
-        origin_dock_id: string;
-        status: string;
-        passenger_capacity: number;
-        occupied_seats: number;
-      }>
-    >`
-      SELECT id, origin_dock_id, status, passenger_capacity, occupied_seats
-      FROM departures
-      WHERE id = ${departureId}::uuid
-      FOR UPDATE
-    `;
-
-    const current = rows[0];
-    if (!current) {
-      throw new DomainError("DEPARTURE_NOT_FOUND", "No se encontrÃ³ la salida para asignar lugar.");
-    }
-    if (current.status !== "BOARDING") {
-      throw new DomainError(
-        "DEPARTURE_NOT_BOARDING",
-        "La salida no se encuentra en estado de abordaje.",
-      );
-    }
-    if (current.occupied_seats >= current.passenger_capacity) {
-      throw new DomainError(
-        "DEPARTURE_CAPACITY_FULL",
-        "La salida ya alcanzÃ³ su capacidad mÃ¡xima de pasajeros.",
-      );
-    }
-
-    const nextSeat = current.occupied_seats + 1;
-    await client.departure.update({
-      where: { id: current.id },
-      data: {
-        occupiedSeats: nextSeat,
-        version: { increment: 1 },
-      },
-    });
-
-    if (nextSeat >= current.passenger_capacity) {
-      await client.departure.update({
-        where: { id: current.id },
-        data: {
-          status: "BOARDING_CLOSED",
-          queuePosition: null,
-          boardingClosedAt: new Date(),
-          version: { increment: 1 },
-        },
-      });
-
-      const nextQueued = await client.departure.findFirst({
-        where: {
-          originDockId: current.origin_dock_id,
-          status: "QUEUED",
-        },
-        orderBy: [{ queuePosition: "asc" }, { createdAt: "asc" }],
-      });
-
-      if (nextQueued) {
-        await client.departure.update({
-          where: { id: nextQueued.id },
-          data: {
-            status: "BOARDING",
-            queuePosition: null,
-            boardingStartedAt: new Date(),
-            version: { increment: 1 },
-          },
-        });
-      }
-    }
-
-    return nextSeat;
   }
 
   async listBoardingsByDepartureId(departureId: string): Promise<DepartureBoardingItem[]> {
