@@ -183,7 +183,3 @@ describe("cancelDeparture y createReturnDeparture (#46)", () => {
     expect(res.returnDeparture.status).toBe("QUEUED");
   });
 });
-
-
-
-

@@ -167,10 +167,7 @@ export class PrismaDepartureRepository implements DepartureRepository {
         }
         const record = await this.findDepartureByIdWithClient(client, params.departureId);
         if (!record) {
-          throw new DomainError(
-            "DEPARTURE_NOT_FOUND",
-            "No se encontró la salida tras cancelarla.",
-          );
+          throw new DomainError("DEPARTURE_NOT_FOUND", "No se encontró la salida tras cancelarla.");
         }
         return record;
       },
