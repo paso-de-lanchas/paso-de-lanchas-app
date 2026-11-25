@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Pruebas de integración para PrismaDepartureRepository contra la BD de pruebas.
  * Requieren `docker compose up -d` y `npm run db:test:prepare`.
  */
@@ -16,7 +16,6 @@ describe.skipIf(!prisma)("repositorio de salidas y concurrencia", () => {
   let originDockId = "";
   let destinationDockId = "";
   let vesselId = "";
-  let departureId = "";
 
   beforeAll(async () => {
     const coa = await db.dock.upsert({
@@ -54,44 +53,29 @@ describe.skipIf(!prisma)("repositorio de salidas y concurrencia", () => {
       },
     });
     vesselId = vessel.id;
-
-    const departure = await db.departure.create({
-      data: {
-        vesselId,
-        originDockId,
-        destinationDockId,
-        status: "BOARDING",
-        queuePosition: null,
-        passengerCapacity: 20,
-        occupiedSeats: 0,
-        boardingStartedAt: new Date(),
-      },
-    });
-    departureId = departure.id;
   });
 
   afterAll(async () => {
-    if (departureId) {
-      await db.departure.deleteMany({ where: { id: departureId } });
-    }
     if (vesselId) {
+      await db.departure.deleteMany({ where: { vesselId } });
       await db.vessel.deleteMany({ where: { id: vesselId } });
     }
     await db.$disconnect();
   });
 
-  it("dos occupySeat al mismo tiempo devuelven números de lugar distintos", async () => {
-    const [seatA, seatB] = await Promise.all([
-      db.$transaction((tx) => repo.occupySeat(tx, departureId)),
-      db.$transaction((tx) => repo.occupySeat(tx, departureId)),
-    ]);
-
-    expect([seatA, seatB].sort((a, b) => a - b)).toEqual([1, 2]);
-
-    const updated = await db.departure.findUnique({
-      where: { id: departureId },
-      select: { occupiedSeats: true },
+  it("encola una salida en transacción y detecta embarcación activa", async () => {
+    const created = await repo.enqueueDepartureInTx({
+      vesselId,
+      driverId: "00000000-0000-0000-0000-000000000001",
+      originDockId,
+      destinationDockId,
+      passengerCapacity: 20,
+      vehicleCapacities: [],
+      startedAt: new Date("2026-11-24T18:00:00.000Z"),
     });
-    expect(updated?.occupiedSeats).toBe(2);
+
+    expect(created.vesselId).toBe(vesselId);
+    const active = await repo.findActiveDepartureByVessel(vesselId);
+    expect(active?.id).toBe(created.id);
   });
 });

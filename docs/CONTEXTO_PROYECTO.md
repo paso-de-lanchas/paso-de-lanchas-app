@@ -203,3 +203,6 @@ Este proyecto es **ingeniería de software**: todo código debe:
 - D26: equipo `desarrollo` con escritura; `develop` exige PR, CI en verde y la aprobación de Omar (`.github/CODEOWNERS`).
   Ahora también se puede completar el PR de `develop` → `main` (2 aprobaciones de personas con escritura).
 - Pendiente: actualizar el documento Word 02 «Flujo de trabajo en GitHub» (v1.2).
+
+### 2026-11-24 — Fila y salidas (#43, PR #58)
+- Se reforzo la operacion de fila y abordaje con bitacora obligatoria (prismaAuditLogger), bloqueo transaccional por muelle (FOR UPDATE), validacion de embarcacion activa en todos los muelles respaldada por indice unico parcial en departures y prueba E2E de flujo de abordaje.

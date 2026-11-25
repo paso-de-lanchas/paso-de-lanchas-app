@@ -1,33 +1,39 @@
+﻿import { z } from "zod";
 import { DomainError } from "@/domain/shared/domain-error";
 import type { AuditLogger, Clock } from "@/application/shared/ports";
 import type { DepartureRepository, WaitlistEntryRecord } from "./ports";
 
-export interface AddToWaitlistInput {
-  dockId: string;
-  passengerId?: string | null;
-  label?: string | null;
-  actorUserId: string;
-  actorDockId?: string | null;
-}
+const addToWaitlistSchema = z.object({
+  dockId: z.string().trim().min(1),
+  passengerId: z.string().trim().min(1).nullable().optional(),
+  label: z.string().trim().min(1).max(80).nullable().optional(),
+  actorUserId: z.string().trim().min(1),
+  actorDockId: z.string().trim().min(1).nullable().optional(),
+});
+
+export type AddToWaitlistInput = z.infer<typeof addToWaitlistSchema>;
 
 export function createAddToWaitlist(
   repo: DepartureRepository,
   clock: Clock,
-  auditLogger?: AuditLogger,
+  auditLogger: AuditLogger,
 ) {
   return async function addToWaitlist(input: AddToWaitlistInput): Promise<WaitlistEntryRecord> {
-    const dockId = input.dockId.trim();
-    const passengerId = input.passengerId?.trim() ? input.passengerId.trim() : null;
-    const label = input.label?.trim() ? input.label.trim() : null;
-
-    if (!dockId) {
-      throw new DomainError("INVALID_DOCK_ID", "El identificador del muelle es obligatorio.");
+    const parsedResult = addToWaitlistSchema.safeParse(input);
+    if (!parsedResult.success) {
+      throw new DomainError(
+        "INVALID_WAITLIST_INPUT",
+        "Los datos de la lista de espera son inválidos.",
+      );
     }
+    const parsed = parsedResult.data;
+    const passengerId = parsed.passengerId ?? null;
+    const label = parsed.label ?? null;
 
-    if (input.actorDockId && input.actorDockId !== dockId) {
+    if (!parsed.actorDockId || parsed.actorDockId !== parsed.dockId) {
       throw new DomainError(
         "DOCK_ACCESS_DENIED",
-        "Solo puedes registrar pasajeros en la lista de espera de tu muelle.",
+        "Debes tener un muelle asignado y solo puedes registrar en la lista de tu muelle.",
       );
     }
 
@@ -38,12 +44,12 @@ export function createAddToWaitlist(
       );
     }
 
-    const dock = await repo.findDockById(dockId);
+    const dock = await repo.findDockById(parsed.dockId);
     if (!dock) {
       throw new DomainError("DOCK_NOT_FOUND", "No se encontró el muelle indicado.");
     }
 
-    const activeBoarding = await repo.findActiveBoardingByDock(dockId);
+    const activeBoarding = await repo.findActiveBoardingByDock(parsed.dockId);
     if (activeBoarding) {
       throw new DomainError(
         "BOARDING_ACTIVE_WAITLIST_NOT_ALLOWED",
@@ -52,26 +58,24 @@ export function createAddToWaitlist(
     }
 
     const created = await repo.createWaitlistEntry({
-      dockId,
+      dockId: parsed.dockId,
       passengerId,
       label,
-      createdById: input.actorUserId,
+      createdById: parsed.actorUserId,
     });
 
-    if (auditLogger) {
-      await auditLogger.log({
-        userId: input.actorUserId,
-        action: "WAITLIST_ENTRY_ADDED",
-        entity: "waitlist_entries",
-        entityId: created.id,
-        details: {
-          dockId,
-          passengerId,
-          label,
-          createdAt: clock.now().toISOString(),
-        },
-      });
-    }
+    await auditLogger.log({
+      userId: parsed.actorUserId,
+      action: "WAITLIST_ENTRY_ADDED",
+      entity: "waitlist_entries",
+      entityId: created.id,
+      details: {
+        dockId: parsed.dockId,
+        passengerId,
+        label,
+        createdAt: clock.now().toISOString(),
+      },
+    });
 
     return created;
   };

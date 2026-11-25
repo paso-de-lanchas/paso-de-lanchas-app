@@ -1,10 +1,12 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertRole } from "@/lib/auth/require-role";
 import { prisma } from "@/infrastructure/db/prisma";
+import { prismaAuditLogger } from "@/infrastructure/audit/prisma-audit-logger";
 import { PrismaDepartureRepository } from "@/infrastructure/departures/prisma-departure-repository";
+import { systemClock } from "@/application/shared/ports";
 import { createEnqueueDeparture } from "@/application/departures/enqueue-departure";
 import { createReorderQueue } from "@/application/departures/reorder-queue";
 import { createCloseBoarding } from "@/application/departures/close-boarding";
@@ -15,10 +17,6 @@ export interface OperationActionState {
   ok: boolean;
   message: string;
 }
-
-const systemClock = {
-  now: () => new Date(),
-};
 
 const enqueueSchema = z.object({
   vesselId: z.string().uuid(),
@@ -63,7 +61,8 @@ export async function enqueueDepartureAction(
     const parsed = enqueueSchema.parse(input);
     const actorDockId = await getUserDockId(user.id);
     const repo = new PrismaDepartureRepository(prisma);
-    const enqueue = createEnqueueDeparture(repo, systemClock);
+    const auditLogger = prismaAuditLogger(prisma);
+    const enqueue = createEnqueueDeparture(repo, systemClock, auditLogger);
     await enqueue({
       vesselId: parsed.vesselId,
       originDockId: parsed.originDockId,
@@ -86,7 +85,8 @@ export async function reorderQueueAction(
     const parsed = reorderSchema.parse(input);
     const actorDockId = await getUserDockId(user.id);
     const repo = new PrismaDepartureRepository(prisma);
-    const reorder = createReorderQueue(repo);
+    const auditLogger = prismaAuditLogger(prisma);
+    const reorder = createReorderQueue(repo, auditLogger);
     await reorder({
       dockId: parsed.dockId,
       orderedDepartureIds: parsed.orderedDepartureIds,
@@ -108,7 +108,8 @@ export async function closeBoardingAction(
     const parsed = closeBoardingSchema.parse(input);
     const actorDockId = await getUserDockId(user.id);
     const repo = new PrismaDepartureRepository(prisma);
-    const closeBoarding = createCloseBoarding(repo, systemClock);
+    const auditLogger = prismaAuditLogger(prisma);
+    const closeBoarding = createCloseBoarding(repo, systemClock, auditLogger);
     const result = await closeBoarding({
       departureId: parsed.departureId,
       actorUserId: user.id,
@@ -134,7 +135,8 @@ export async function addToWaitlistAction(
     const parsed = waitlistSchema.parse(input);
     const actorDockId = await getUserDockId(user.id);
     const repo = new PrismaDepartureRepository(prisma);
-    const addWaitlist = createAddToWaitlist(repo, systemClock);
+    const auditLogger = prismaAuditLogger(prisma);
+    const addWaitlist = createAddToWaitlist(repo, systemClock, auditLogger);
     await addWaitlist({
       dockId: parsed.dockId,
       passengerId: parsed.passengerId ?? null,
