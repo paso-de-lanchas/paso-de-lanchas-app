@@ -352,11 +352,7 @@ describe("departures use cases", () => {
     const repoConAbordaje = createFakeRepo({
       departures: [makeDeparture({ id: "dep-1", status: "BOARDING", queuePosition: null })],
     });
-    const addWaitlist = createAddToWaitlist(
-      repoConAbordaje,
-      fixedClock,
-      createFakeAuditLogger(),
-    );
+    const addWaitlist = createAddToWaitlist(repoConAbordaje, fixedClock, createFakeAuditLogger());
 
     await expect(
       addWaitlist({

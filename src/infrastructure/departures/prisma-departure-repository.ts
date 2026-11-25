@@ -621,7 +621,9 @@ export class PrismaDepartureRepository implements DepartureRepository {
     dockId: string;
     startedAt: Date;
     pickNext: (queued: DepartureRecord[]) => DepartureRecord | null;
-    reorderRemaining: (remaining: DepartureRecord[]) => Array<{ id: string; queuePosition: number }>;
+    reorderRemaining: (
+      remaining: DepartureRecord[],
+    ) => Array<{ id: string; queuePosition: number }>;
   }): Promise<DepartureRecord | null> {
     return this.prisma.$transaction(async (tx) => {
       await lockDock(tx, params.dockId);

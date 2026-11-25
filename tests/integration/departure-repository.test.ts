@@ -16,6 +16,7 @@ describe.skipIf(!prisma)("repositorio de salidas y concurrencia", () => {
   let originDockId = "";
   let destinationDockId = "";
   let vesselId = "";
+  let driverId = "";
 
   beforeAll(async () => {
     const coa = await db.dock.upsert({
@@ -42,6 +43,18 @@ describe.skipIf(!prisma)("repositorio de salidas y concurrencia", () => {
     destinationDockId = val.id;
 
     const suffix = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const driver = await db.user.create({
+      data: {
+        fullName: `Chofer Prueba ${suffix}`,
+        email: `chofer-${suffix}@test.local`,
+        passwordHash: "test-hash-not-for-login",
+        role: "DRIVER",
+        status: "ACTIVE",
+        dockId: coa.id,
+      },
+    });
+    driverId = driver.id;
+
     const vessel = await db.vessel.create({
       data: {
         code: `T-${suffix.slice(-6)}`,
@@ -60,13 +73,16 @@ describe.skipIf(!prisma)("repositorio de salidas y concurrencia", () => {
       await db.departure.deleteMany({ where: { vesselId } });
       await db.vessel.deleteMany({ where: { id: vesselId } });
     }
+    if (driverId) {
+      await db.user.deleteMany({ where: { id: driverId } });
+    }
     await db.$disconnect();
   });
 
   it("encola una salida en transacción y detecta embarcación activa", async () => {
     const created = await repo.enqueueDepartureInTx({
       vesselId,
-      driverId: "00000000-0000-0000-0000-000000000001",
+      driverId,
       originDockId,
       destinationDockId,
       passengerCapacity: 20,

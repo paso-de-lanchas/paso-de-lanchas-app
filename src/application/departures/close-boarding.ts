@@ -25,10 +25,7 @@ export function createCloseBoarding(
   ): Promise<{ closed: DepartureRecord; nextBoarding: DepartureRecord | null }> {
     const parsedResult = closeBoardingSchema.safeParse(input);
     if (!parsedResult.success) {
-      throw new DomainError(
-        "INVALID_DEPARTURE_ID",
-        "El identificador de la salida es inválido.",
-      );
+      throw new DomainError("INVALID_DEPARTURE_ID", "El identificador de la salida es inválido.");
     }
     const parsed = parsedResult.data;
 

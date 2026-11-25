@@ -94,11 +94,11 @@ export function OperationClient({
   }
 
   return (
-    <div className="space-y-6 text-ink">
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-line bg-white p-4 shadow-xs">
+    <div className="text-ink space-y-6">
+      <div className="border-line flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-white p-4 shadow-xs">
         <div>
-          <p className="text-xs font-medium text-ink/60">Muelle de operación</p>
-          <p className="text-base font-semibold text-ink">
+          <p className="text-ink/60 text-xs font-medium">Muelle de operación</p>
+          <p className="text-ink text-base font-semibold">
             {dockMap.get(selectedDockId) ?? selectedDockId}
           </p>
         </div>
@@ -124,28 +124,26 @@ export function OperationClient({
       {feedback && (
         <div
           className={`rounded-lg border px-4 py-3 text-sm ${
-            feedback.ok
-              ? "border-brand/30 bg-brand/10 text-ink"
-              : "border-line bg-ink/5 text-ink"
+            feedback.ok ? "border-brand/30 bg-brand/10 text-ink" : "border-line bg-ink/5 text-ink"
           }`}
         >
           {feedback.text}
         </div>
       )}
 
-      <section className="rounded-xl border border-line bg-white p-5 shadow-xs">
-        <h2 className="text-lg font-semibold text-ink">Salida abordando actualmente</h2>
+      <section className="border-line rounded-xl border bg-white p-5 shadow-xs">
+        <h2 className="text-ink text-lg font-semibold">Salida abordando actualmente</h2>
         {boarding ? (
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-line bg-ink/5 p-4">
+          <div className="border-line bg-ink/5 mt-3 flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4">
             <div className="space-y-1">
-              <p className="font-medium text-ink">
+              <p className="text-ink font-medium">
                 {vesselMap.get(boarding.vesselId)?.code ?? boarding.vesselId} —{" "}
                 {vesselMap.get(boarding.vesselId)?.name ?? "Embarcación"}
               </p>
-              <p className="text-sm text-ink/70">
+              <p className="text-ink/70 text-sm">
                 Destino: {dockMap.get(boarding.destinationDockId) ?? boarding.destinationDockId}
               </p>
-              <p className="text-sm font-medium text-ink/85">
+              <p className="text-ink/85 text-sm font-medium">
                 Ocupación: {boarding.occupiedSeats} / {boarding.passengerCapacity} lugares
               </p>
             </div>
@@ -153,30 +151,30 @@ export function OperationClient({
               type="button"
               disabled={isPending}
               onClick={() => handleCloseBoarding(boarding.id)}
-              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              className="bg-brand rounded-lg px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
               Cerrar abordaje
             </button>
           </div>
         ) : (
-          <p className="mt-2 text-sm text-ink/60">
+          <p className="text-ink/60 mt-2 text-sm">
             No hay ninguna embarcación abordando en este muelle.
           </p>
         )}
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-xl border border-line bg-white p-5 shadow-xs">
-          <h2 className="text-lg font-semibold text-ink">Formar embarcación en fila</h2>
+        <section className="border-line rounded-xl border bg-white p-5 shadow-xs">
+          <h2 className="text-ink text-lg font-semibold">Formar embarcación en fila</h2>
           <form onSubmit={handleEnqueue} className="mt-4 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-ink/85">
+              <label className="text-ink/85 block text-sm font-medium">
                 Embarcación (activa con chofer asignado)
               </label>
               <select
                 value={vesselId}
                 onChange={(e) => setVesselId(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink"
+                className="border-line text-ink mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm"
               >
                 {vessels.map((v) => (
                   <option key={v.id} value={v.id} disabled={!v.activeDriverId}>
@@ -188,11 +186,11 @@ export function OperationClient({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-ink/85">Muelle de destino</label>
+              <label className="text-ink/85 block text-sm font-medium">Muelle de destino</label>
               <select
                 value={destinationDockId}
                 onChange={(e) => setDestinationDockId(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink"
+                className="border-line text-ink mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm"
               >
                 {docks
                   .filter((d) => d.id !== selectedDockId)
@@ -207,24 +205,24 @@ export function OperationClient({
             <button
               type="submit"
               disabled={isPending || !vesselId || !destinationDockId}
-              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              className="bg-brand rounded-lg px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
               Agregar a la fila
             </button>
           </form>
 
-          <div className="mt-6 border-t border-line pt-4">
-            <h3 className="text-sm font-semibold text-ink">
+          <div className="border-line mt-6 border-t pt-4">
+            <h3 className="text-ink text-sm font-semibold">
               Fila de espera de embarcaciones ({queued.length})
             </h3>
             {queued.length === 0 ? (
-              <p className="mt-2 text-sm text-ink/60">No hay embarcaciones en fila.</p>
+              <p className="text-ink/60 mt-2 text-sm">No hay embarcaciones en fila.</p>
             ) : (
-              <ul className="mt-3 divide-y divide-line">
+              <ul className="divide-line mt-3 divide-y">
                 {queued.map((item, idx) => (
                   <li key={item.id} className="flex items-center justify-between py-2.5 text-sm">
                     <div>
-                      <span className="font-semibold text-ink">#{idx + 1}</span>{" "}
+                      <span className="text-ink font-semibold">#{idx + 1}</span>{" "}
                       <span className="text-ink/90">
                         {vesselMap.get(item.vesselId)?.code ?? item.vesselId}
                       </span>{" "}
@@ -237,7 +235,7 @@ export function OperationClient({
                         type="button"
                         disabled={isPending || idx === 0}
                         onClick={() => handleMove(idx, -1)}
-                        className="rounded border border-line px-2 py-1 text-xs text-ink hover:bg-ink/5 disabled:opacity-40"
+                        className="border-line text-ink hover:bg-ink/5 rounded border px-2 py-1 text-xs disabled:opacity-40"
                       >
                         Subir
                       </button>
@@ -245,7 +243,7 @@ export function OperationClient({
                         type="button"
                         disabled={isPending || idx === queued.length - 1}
                         onClick={() => handleMove(idx, 1)}
-                        className="rounded border border-line px-2 py-1 text-xs text-ink hover:bg-ink/5 disabled:opacity-40"
+                        className="border-line text-ink hover:bg-ink/5 rounded border px-2 py-1 text-xs disabled:opacity-40"
                       >
                         Bajar
                       </button>
@@ -257,9 +255,9 @@ export function OperationClient({
           </div>
         </section>
 
-        <section className="rounded-xl border border-line bg-white p-5 shadow-xs">
-          <h2 className="text-lg font-semibold text-ink">Lista de espera (sin cobro)</h2>
-          <p className="mt-1 text-xs text-ink/60">
+        <section className="border-line rounded-xl border bg-white p-5 shadow-xs">
+          <h2 className="text-ink text-lg font-semibold">Lista de espera (sin cobro)</h2>
+          <p className="text-ink/60 mt-1 text-xs">
             Registra pasajeros por referencia de nombre sin realizar cobros.
           </p>
           <form onSubmit={handleAddWaitlist} className="mt-4 flex gap-2">
@@ -269,27 +267,27 @@ export function OperationClient({
               onChange={(e) => setWaitlistLabel(e.target.value)}
               placeholder="Nombre del pasajero"
               maxLength={80}
-              className="flex-1 rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink"
+              className="border-line text-ink flex-1 rounded-lg border bg-white px-3 py-2 text-sm"
             />
             <button
               type="submit"
               disabled={isPending || !waitlistLabel.trim()}
-              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              className="bg-brand rounded-lg px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
               Registrar
             </button>
           </form>
 
-          <ul className="mt-5 divide-y divide-line">
+          <ul className="divide-line mt-5 divide-y">
             {waitlist.length === 0 ? (
-              <li className="py-3 text-sm text-ink/60">No hay pasajeros en lista de espera.</li>
+              <li className="text-ink/60 py-3 text-sm">No hay pasajeros en lista de espera.</li>
             ) : (
               waitlist.map((entry) => (
                 <li key={entry.id} className="flex items-center justify-between py-2.5 text-sm">
-                  <span className="font-medium text-ink/90">
+                  <span className="text-ink/90 font-medium">
                     {entry.label ?? entry.passengerId ?? "Pasajero"}
                   </span>
-                  <span className="rounded bg-ink/5 px-2 py-0.5 text-xs text-ink/70">
+                  <span className="bg-ink/5 text-ink/70 rounded px-2 py-0.5 text-xs">
                     {entry.status}
                   </span>
                 </li>

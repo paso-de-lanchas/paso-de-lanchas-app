@@ -21,10 +21,19 @@ test("forma dos embarcaciones, aborda la primera, cierra abordaje y promueve la 
 
   const vesselOptionsCount = await vesselSelect.locator("option:not([disabled])").count();
   const destOptionsCount = await destSelect.locator("option").count();
-  test.skip(vesselOptionsCount < 2 || destOptionsCount < 1, "Requiere al menos 2 embarcaciones activas con chofer y 1 destino.");
+  test.skip(
+    vesselOptionsCount < 2 || destOptionsCount < 1,
+    "Requiere al menos 2 embarcaciones activas con chofer y 1 destino.",
+  );
 
-  const firstVesselId = await vesselSelect.locator("option:not([disabled])").nth(0).getAttribute("value");
-  const secondVesselId = await vesselSelect.locator("option:not([disabled])").nth(1).getAttribute("value");
+  const firstVesselId = await vesselSelect
+    .locator("option:not([disabled])")
+    .nth(0)
+    .getAttribute("value");
+  const secondVesselId = await vesselSelect
+    .locator("option:not([disabled])")
+    .nth(1)
+    .getAttribute("value");
   const destId = await destSelect.locator("option").first().getAttribute("value");
 
   if (!firstVesselId || !secondVesselId || !destId) {

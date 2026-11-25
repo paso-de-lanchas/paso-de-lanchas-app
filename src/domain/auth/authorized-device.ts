@@ -24,3 +24,31 @@ export function checkDevice(
   if (user.role === "ADMIN" && device.dockId !== user.dockId) return "WRONG_DOCK";
   return "ALLOWED";
 }
+
+/** Nombre visible de la computadora (`authorized_devices.name`). */
+export const DEVICE_NAME_MAX_LENGTH = 60;
+
+export const DEVICE_STATUSES: readonly DeviceStatus[] = ["PENDING", "APPROVED", "REVOKED"];
+
+/** Solo se aprueba una solicitud pendiente (RF-121). */
+export function canApproveDevice(status: DeviceStatus): boolean {
+  return status === "PENDING";
+}
+
+/** Se revoca una solicitud pendiente (rechazarla) o una computadora aprobada (RF-121). */
+export function canRevokeDevice(status: DeviceStatus): boolean {
+  return status === "PENDING" || status === "APPROVED";
+}
+
+/**
+ * Muelle con el que se aprueba la computadora. La de un administrador debe ser **de su
+ * muelle** (si no, `checkDevice` lo rechazaría por WRONG_DOCK al entrar); la del
+ * superadministrador puede ser de cualquier muelle o de oficina (sin muelle).
+ */
+export function isValidDeviceDock(
+  requester: { role: Role; dockId: string | null },
+  dockId: string | null,
+): boolean {
+  if (requester.role !== "ADMIN") return true;
+  return dockId !== null && dockId === requester.dockId;
+}
