@@ -1,5 +1,6 @@
 /**
- * Índices únicos parciales de la migración "indices_unicos_asignaciones_descuentos" (issue #27).
+ * Índices únicos parciales de las migraciones "indices_unicos_asignaciones_descuentos" (issue #27)
+ * y "placas_unicas_solo_activas" (issue #40).
  * Requieren `docker compose up -d` y `npm run db:test:prepare`.
  */
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -16,6 +17,7 @@ describe.skipIf(!prisma)("índices únicos parciales", () => {
   let driverId: string;
   let passengerId: string;
   let vesselId: string;
+  let vehicleTypeId: number;
 
   beforeAll(async () => {
     const driver = await db.user.create({
@@ -42,12 +44,20 @@ describe.skipIf(!prisma)("índices únicos parciales", () => {
         passengerCapacity: 10,
       },
     });
+    const vehicleType = await db.vehicleType.upsert({
+      where: { name: `Auto-${suffix}` },
+      update: {},
+      create: { name: `Auto-${suffix}` },
+    });
     driverId = driver.id;
     passengerId = passenger.id;
     vesselId = vessel.id;
+    vehicleTypeId = vehicleType.id;
   });
 
   afterAll(async () => {
+    await db.vehicle.deleteMany({ where: { ownerId: passengerId } });
+    await db.vehicleType.delete({ where: { id: vehicleTypeId } });
     await db.vesselDriver.deleteMany({ where: { vesselId } });
     await db.vessel.delete({ where: { id: vesselId } });
     await db.discountRequest.deleteMany({ where: { userId: passengerId } });
@@ -79,5 +89,30 @@ describe.skipIf(!prisma)("índices únicos parciales", () => {
       data: { status: "REJECTED", rejectionReason: "Prueba" },
     });
     await expect(db.discountRequest.create({ data: pending })).resolves.toBeDefined();
+  });
+
+  it("permite volver a registrar placas de un vehículo borrado pero rechaza duplicados activos", async () => {
+    const vehicleData = {
+      ownerId: passengerId,
+      vehicleTypeId,
+      brand: "Nissan",
+      model: "Versa",
+      color: "Blanco",
+      plate: `PL${suffix}`.slice(0, 10).toUpperCase(),
+    };
+
+    const first = await db.vehicle.create({ data: vehicleData });
+    await expect(db.vehicle.create({ data: vehicleData })).rejects.toThrow();
+
+    // Al borrar lógicamente el vehículo, sí se pueden volver a registrar las mismas placas.
+    await db.vehicle.update({
+      where: { id: first.id },
+      data: { deletedAt: new Date() },
+    });
+    const second = await db.vehicle.create({ data: vehicleData });
+    expect(second.id).not.toBe(first.id);
+
+    // Con el nuevo vehículo activo, vuelve a rechazar un duplicado activo.
+    await expect(db.vehicle.create({ data: vehicleData })).rejects.toThrow();
   });
 });

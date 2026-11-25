@@ -1,7 +1,9 @@
 /**
- * SOLO PARA DESARROLLO: aprueba todas las computadoras pendientes de la base local, para
- * poder entrar como administrador o superadministrador mientras se programa la pantalla del
- * superadministrador (sprint 3). Uso: `npm run dev:aprobar-computadoras`.
+ * SOLO PARA DESARROLLO: aprueba las computadoras pendientes de la base local, para entrar como
+ * administrador o superadministrador sin pasar por la pantalla del superadministrador
+ * (`/superadmin/computadoras`, issue #42). Uso: `npm run dev:aprobar-computadoras` (todas) o
+ * `npm run dev:aprobar-computadoras -- correo@pasolanchas.test` (solo las de esa cuenta; así
+ * lo usan las pruebas de navegador para no aprobar las solicitudes de otras pruebas).
  */
 import { PrismaPg } from "@prisma/adapter-pg";
 import { config } from "dotenv";
@@ -28,8 +30,9 @@ const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url 
 
 async function main() {
   const superadmin = await prisma.user.findFirst({ where: { role: "SUPERADMIN" } });
+  const email = process.argv[2]?.trim().toLowerCase();
   const { count } = await prisma.authorizedDevice.updateMany({
-    where: { status: "PENDING" },
+    where: { status: "PENDING", ...(email ? { requestedBy: { email } } : {}) },
     data: { status: "APPROVED", approvedById: superadmin?.id ?? null, approvedAt: new Date() },
   });
   console.log(`Computadoras aprobadas: ${count}`);
