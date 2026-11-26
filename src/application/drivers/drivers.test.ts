@@ -65,7 +65,9 @@ function createFakeRepo(seed: {
       );
     },
     async getDriverById(id) {
-      return drivers.find((d) => d.id === id && d.role === "DRIVER" && d.deletedAt === null) ?? null;
+      return (
+        drivers.find((d) => d.id === id && d.role === "DRIVER" && d.deletedAt === null) ?? null
+      );
     },
     async updateDriverProfile(id, data: DriverUpdateData) {
       const idx = drivers.findIndex((d) => d.id === id);
@@ -140,7 +142,11 @@ describe("Casos de uso de choferes (#13)", () => {
 
     await expect(updateDriver({ driverId: "drv-1", fullName: "A" })).rejects.toThrow(InputError);
     await expect(
-      updateDriver({ driverId: "drv-1", fullName: "Carlos", photoUrl: "http://insegura.com/a.jpg" }),
+      updateDriver({
+        driverId: "drv-1",
+        fullName: "Carlos",
+        photoUrl: "http://insegura.com/a.jpg",
+      }),
     ).rejects.toThrow(InputError);
   });
 

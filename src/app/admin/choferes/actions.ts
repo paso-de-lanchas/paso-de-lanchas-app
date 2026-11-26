@@ -94,10 +94,7 @@ export async function assignDriverAction(
   return { error: null, success: "Chofer asignado a la embarcación." };
 }
 
-export async function unassignDriverAction(
-  driverId: string,
-  assignmentId: string,
-): Promise<void> {
+export async function unassignDriverAction(driverId: string, assignmentId: string): Promise<void> {
   const actor = await assertRole("ADMIN", "SUPERADMIN");
   const repo = new PrismaDriverRepository();
   const audit = prismaAuditLogger(prisma);

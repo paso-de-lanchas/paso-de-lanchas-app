@@ -23,7 +23,10 @@ export const updateDriverSchema = z.object({
     .string()
     .trim()
     .max(20, "El teléfono no puede exceder 20 caracteres.")
-    .regex(/^[0-9+\-\s()]*$/, "El teléfono solo puede contener dígitos y símbolos (+, -, espacios).")
+    .regex(
+      /^[0-9+\-\s()]*$/,
+      "El teléfono solo puede contener dígitos y símbolos (+, -, espacios).",
+    )
     .optional()
     .nullable(),
 });
@@ -57,7 +60,10 @@ export function createUpdateDriver(repository: DriverRepository) {
     }
 
     if (driver.role !== "DRIVER") {
-      throw new DomainError("USER_NOT_DRIVER", "El usuario seleccionado no tiene el rol de chofer.");
+      throw new DomainError(
+        "USER_NOT_DRIVER",
+        "El usuario seleccionado no tiene el rol de chofer.",
+      );
     }
 
     const normalizedPhoto =

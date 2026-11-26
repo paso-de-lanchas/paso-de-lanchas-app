@@ -186,10 +186,7 @@ export function DriverDetailClient({ driver, vessels }: DriverDetailClientProps)
               {driver.assignmentHistory.map((item) => {
                 const isActive = item.unassignedAt === null;
                 return (
-                  <li
-                    key={item.id}
-                    className="flex items-center justify-between gap-2 py-2.5"
-                  >
+                  <li key={item.id} className="flex items-center justify-between gap-2 py-2.5">
                     <div>
                       <span className="text-ink font-semibold">
                         {item.vesselCode} · {item.vesselName}
