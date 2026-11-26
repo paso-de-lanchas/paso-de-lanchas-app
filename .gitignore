@@ -50,3 +50,6 @@ src/generated/
 # Next.js extra
 *.pem
 .yarn/*
+
+# Credenciales subidas en desarrollo (Issue #18)
+uploads/

@@ -931,3 +931,21 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER "audit_logs_immutable"
   BEFORE UPDATE OR DELETE ON "audit_logs"
   FOR EACH ROW EXECUTE FUNCTION "audit_logs_block_changes"();
+
+-- =============================================================================
+-- Migración 20261122075921_indices_unicos_asignaciones_descuentos (issue #27)
+-- =============================================================================
+-- Índices únicos parciales (issue #27). Prisma no los detecta en schema.prisma, por eso se escriben a mano.
+
+-- Un chofer no puede tener dos asignaciones activas a la misma embarcación.
+CREATE UNIQUE INDEX "vessel_drivers_one_active_assignment"
+  ON "vessel_drivers" ("driver_id", "vessel_id")
+  WHERE "unassigned_at" IS NULL;
+
+-- Un pasajero no puede tener dos solicitudes de descuento en revisión.
+CREATE UNIQUE INDEX "discount_requests_one_pending_per_user"
+  ON "discount_requests" ("user_id")
+  WHERE "status" = 'PENDING';
+
+-- Migración 20261122095058_computadoras_de_oficina (issue #9): computadoras del superadministrador sin muelle.
+ALTER TABLE "authorized_devices" ALTER COLUMN "dock_id" DROP NOT NULL;

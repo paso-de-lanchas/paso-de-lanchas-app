@@ -278,16 +278,17 @@ model Session {
 
 model AuthorizedDevice {
   id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  dockId          String       @map("dock_id") @db.Uuid
+  dockId          String?      @map("dock_id") @db.Uuid // null = computadora de oficina (superadmin)
   name            String       @db.VarChar(60)
   deviceTokenHash String       @unique @map("device_token_hash")
   status          DeviceStatus @default(PENDING)
   requestedById   String       @map("requested_by") @db.Uuid
+  requestedAt     DateTime     @default(now()) @map("requested_at") @db.Timestamptz(6)
   approvedById    String?      @map("approved_by") @db.Uuid
   approvedAt      DateTime?    @map("approved_at") @db.Timestamptz(6)
   lastSeenAt      DateTime?    @map("last_seen_at") @db.Timestamptz(6)
 
-  dock        Dock  @relation(fields: [dockId], references: [id], onDelete: Restrict)
+  dock        Dock? @relation(fields: [dockId], references: [id], onDelete: Restrict)
   requestedBy User  @relation("DeviceRequester", fields: [requestedById], references: [id], onDelete: Restrict)
   approvedBy  User? @relation("DeviceApprover", fields: [approvedById], references: [id], onDelete: SetNull)
 
@@ -453,7 +454,7 @@ model Vehicle {
   vehicleType VehicleType @relation(fields: [vehicleTypeId], references: [id], onDelete: Restrict)
   boardings   Boarding[]
 
-  @@unique([ownerId, plate])
+  // Índice único parcial en (owner_id, plate) WHERE deleted_at IS NULL (migración placas_unicas_solo_activas)
   @@map("vehicles")
 }
 

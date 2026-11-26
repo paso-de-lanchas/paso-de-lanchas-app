@@ -1,12 +1,5 @@
 import Link from "next/link";
 
-const sections = [
-  { href: "/pasajero", label: "Pasajero" },
-  { href: "/chofer", label: "Chofer" },
-  { href: "/admin", label: "Administrador (taquilla)" },
-  { href: "/superadmin", label: "Superadministrador" },
-];
-
 export default function HomePage() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-col items-center gap-8 px-4 py-16 text-center">
@@ -14,18 +7,21 @@ export default function HomePage() {
         <span className="font-heading text-brand text-3xl font-bold">Paso de Lanchas</span>
         <span className="text-ink-muted">Coatzacoalcos ⇄ Villa Allende</span>
       </div>
-      <nav aria-label="Secciones" className="flex w-full flex-col gap-3">
-        {sections.map((s) => (
-          <Link
-            key={s.href}
-            href={s.href}
-            className="bg-brand flex h-14 items-center justify-center rounded-2xl text-lg font-bold text-white"
-          >
-            {s.label}
-          </Link>
-        ))}
-      </nav>
-      <p className="text-ink-muted text-sm">Base del proyecto · Sprint 1</p>
+      <Link
+        href="/login"
+        className="bg-brand flex h-14 w-full items-center justify-center rounded-2xl text-lg font-bold text-white"
+      >
+        Iniciar sesión
+      </Link>
+      <Link
+        href="/registro"
+        className="border-brand text-brand flex h-14 w-full items-center justify-center rounded-2xl border-2 text-lg font-bold"
+      >
+        Crear cuenta de pasajero
+      </Link>
+      <p className="text-ink-muted text-sm">
+        Cada cuenta entra a su sección: pasajero, chofer, administrador o superadministrador.
+      </p>
     </main>
   );
 }

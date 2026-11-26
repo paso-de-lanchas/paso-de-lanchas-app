@@ -66,9 +66,11 @@ No hay vista para autoridades: el administrador genera y entrega los reportes.
 | D19 | **Incidente**: si una embarcación sufre un incidente, la salida afectada se reasigna (pasajeros a la lista de espera con prioridad, sin volver a cobrar) o se reembolsa. La fila de embarcaciones sigue siendo la Salida en estado «En fila» | Observación del equipo («reasignar por cualquier accidente») |
 | D20 | Versiones: **Node 24 LTS**, **Next.js 16.4**, **React 19**, **Tailwind 4**, **Prisma 7.10.1 fijado** (la 8.0 aún es RC), **PostgreSQL 17** (misma versión en local, CI y Neon) | Estables y con soporte durante todo el proyecto |
 | D21 | Entorno local: **Docker solo para los servicios** (PostgreSQL de desarrollo en el puerto **5434**, de pruebas en **5435**, Mailpit, Adminer) y Node instalado en cada computadora; la app en Docker queda como opción | En Windows, Next.js dentro de Docker es lento; el 5432 lo ocupa un PostgreSQL instalado en Windows |
-| D22 | Mientras el equipo se integra, `develop` **no exige aprobación** en GitHub (sigue exigiendo pull request y sin force push); cada PR debe llevar al menos un comentario de revisión. `main` sigue con 2 aprobaciones | El equipo aún no participa en las revisiones y bloqueaba todo el avance |
+| D22 | *(Reemplazada por D26 el 2026-11-23.)* Mientras el equipo se integra, `develop` **no exige aprobación** en GitHub (sigue exigiendo pull request y sin force push); cada PR debe llevar al menos un comentario de revisión. `main` sigue con 2 aprobaciones | El equipo aún no participa en las revisiones y bloqueaba todo el avance |
 | D23 | **Reparto por módulos** (19 módulos de los RF): Omar — acceso, superadministración, auditoría; Pamela — operación de muelles, flota, choferes, reportes; Diego — QR, viajes del chofer, mapa, PWA; José — cuenta, vehículos, información al pasajero, horario y avisos, notificaciones; Cova — saldo, abordaje y taquilla, tarifas. Detalle en `docs/MODULOS_Y_RESPONSABLES.md` | Cada quien es dueño de punta a punta de sus módulos |
-| D24 | **Librería de login pendiente** (ADR 0002): Auth.js pasó a mantenimiento (su equipo se unió a Better Auth en 2025). Se decide al inicio del sprint 2 entre Better Auth y una implementación propia sobre nuestras tablas | Evitar adoptar una librería sin futuro |
+| D24 | **Login propio, sin librería** (ADR 0002 aceptada el 2026-11-22): Argon2id + sesiones en la tabla `sessions` (solo el hash del token) con cookie `HttpOnly`, `requireRole` en servidor y `proxy.ts` solo como filtro rápido. Se descartó Auth.js (en mantenimiento) y Better Auth (exige sus tablas `account`/`verification` y cambiar `users`/`sessions`; las reglas del personal se programan igual) | Usar nuestras tablas tal cual y entender/controlar cada parte |
+| D25 | **Seguridad del personal** (issue #9): bloqueo de 15 min (`lockout_minutes`) tras `max_failed_logins` intentos para chofer, admin y superadmin, no para el pasajero; computadora autorizada solo para admin (de su muelle) y superadmin (cualquiera aprobada); inactividad de `session_timeout_minutes_staff` para admin y superadmin. `authorized_devices.dock_id` pasa a ser opcional: sin muelle = computadora de oficina del superadmin | Al pasajero no se le puede dejar sin abordar con intentos maliciosos; el chofer usa su propio celular; el superadmin no tiene muelle |
+| D26 | **Permisos en GitHub** (reemplaza a D22): equipo `desarrollo` con permiso de **escritura** en `paso-de-lanchas-app` para los 5. En `develop`: todo entra por PR (sin push directo, sin force push ni borrado), la CI («Lint, tipos, pruebas y build») debe estar en verde y se exige la **aprobación del responsable del código** (`.github/CODEOWNERS` = Omar); un cambio subido después de aprobar pide aprobar de nuevo. Solo Omar fusiona; como administrador puede fusionar sus propios PRs sin aprobación (GitHub no deja aprobarse a uno mismo), pero también con la CI en verde. Los compañeros siguen revisando con comentarios según la tabla de `docs/MODULOS_Y_RESPONSABLES.md`. `main` sigue con 2 aprobaciones | Con solo lectura nadie más podía subir ramas al repo (quien no usaba *fork* no podía hacer push) ni aprobar el PR de `develop` → `main`; al dar escritura, sin estas reglas cualquiera podría fusionar su propio PR o subir directo a `develop` (la regla anterior no exigía PR, aunque D22 lo decía) |
 
 ## 4. Reglas que SIEMPRE se deben seguir
 
@@ -173,3 +175,58 @@ Este proyecto es **ingeniería de software**: todo código debe:
   programación (rama, archivos, casos de uso, pruebas y pantalla). Los módulos que no son login empiezan sin esperar a
   #7 usando los datos del seed.
 - **Siguiente:** #4 (todos preparan su computadora), #5 (Omar decide la librería de login), visita de campo.
+
+### 2026-11-22 — Decisión del login
+- ADR 0002 **aceptada**: login propio sobre nuestras tablas (D24). No se instala librería de autenticación.
+- Omar empieza a programar sus issues: #7 (iniciar y cerrar sesión, `requireRole`) primero, porque los demás módulos
+  lo necesitan para quitar los usuarios de ejemplo; luego #6, #8 y #9.
+- PRs #28 (índices únicos, #27), #29 (ADR) y #30 (login por rol, #7) fusionados a `develop`.
+- Seguridad del personal (#9, D25): bloqueo por intentos, computadoras autorizadas con cookie de dispositivo (solo su
+  hash en la base), cierre por inactividad, sesiones cortadas si se retira la computadora y bitácora de cada rechazo.
+  Script de desarrollo `npm run dev:aprobar-computadoras` mientras llega la pantalla del superadmin (sprint 3).
+### 2026-11-22 — Tarifas con vigencia (#14)
+- Se agregaron reglas de dominio para categorías y tipos de vehículo, y casos de uso para establecer tarifas, consultar las vigentes y recuperar su historial.
+- El repositorio Prisma cierra la tarifa anterior y crea la nueva dentro de la misma transacción; la restricción PostgreSQL `fares_no_overlap` sigue siendo la última defensa contra traslapes.
+- La pantalla `/admin/tarifas` permite configurar los precios de lancha, peatón y cada tipo de vehículo del transbordador, ver las vigencias y consultar el historial. Página y acción validan el rol `ADMIN`.
+- Las tarifas seed se conservan como aproximadas hasta la visita de campo.
+- Registro de pasajero (#6): nombre, correo, celular a 10 dígitos y contraseña (8+ con letra y número); aviso de
+  privacidad obligatorio (`privacy_accepted_at`). La cuenta nace `PENDING_VERIFICATION` con monedero en $0 y se activa
+  con un enlace de 24 h que se confirma con un botón (no al abrirlo, para que los antivirus de correo no lo gasten).
+  Si el correo ya existe, la pantalla responde igual y al dueño le llega un aviso. Correo por SMTP con nodemailer.
+- Recuperar y cambiar contraseña (#8, 2026-11-23): "¿Olvidaste tu contraseña?" manda un enlace de 30 minutos y un
+  solo uso (solo a cuentas activas, máximo 3 cada 30 minutos, misma respuesta exista o no el correo). Al usarlo se
+  invalidan los demás enlaces, se quita el bloqueo por intentos y se cierran **todas** las sesiones. Cambiar la
+  contraseña desde la cuenta pide la actual y cierra las demás sesiones. Con contraseña temporal
+  (`must_change_password`, la que asigna el superadmin) el login lleva a `/cuenta/cambiar-contrasena` y `requireRole` /
+  `assertRole` no dejan hacer nada más hasta cambiarla. Cada cambio avisa por correo al dueño.
+
+### 2026-11-23 — Permisos del equipo en GitHub
+- Un integrante no podía hacer push de su rama: todos tenían solo **lectura** en el repo de la organización. Pamela y
+  José trabajaban desde un *fork*, por eso sí podían abrir PRs. La guía de contribución pedía clonar el repo de la
+  organización, que sin escritura no deja hacer push.
+- Se revisaron las reglas: `develop` solo impedía borrar y hacer force push; **no exigía PR** (lo contrario a D22).
+- D26: equipo `desarrollo` con escritura; `develop` exige PR, CI en verde y la aprobación de Omar (`.github/CODEOWNERS`).
+  Ahora también se puede completar el PR de `develop` → `main` (2 aprobaciones de personas con escritura).
+- Pendiente: actualizar el documento Word 02 «Flujo de trabajo en GitHub» (v1.2).
+
+### 2026-11-24 — Cuentas del personal (#41)
+- El superadministrador crea en `/superadmin/personal/nuevo` cuentas de **administrador** (con muelle obligatorio) y
+  **chofer** (sin muelle). Nacen `ACTIVE`, con el correo ya confirmado y `must_change_password`. La contraseña temporal
+  (12 caracteres sin 0/O/1/l/I, con `crypto.randomInt`) se muestra **una sola vez** y se manda por correo; si el correo
+  falla, la cuenta queda creada y la pantalla lo avisa.
+- En el detalle de cada cuenta: desactivar (borra sus sesiones en la misma transacción), reactivar, desbloquear
+  (intentos en 0 y sin `locked_until`) y restablecer la contraseña (temporal nueva, cierra sesiones e invalida enlaces de
+  recuperación pendientes). Los cambios de estado son condicionales para que dos superadmins no se pisen.
+- Nunca se listan ni modifican superadministradores (incluido uno mismo) ni pasajeros: se tratan como si no existieran.
+  Todo queda en la bitácora con quién lo hizo; la contraseña nunca se registra.
+
+### 2026-11-24 — Computadoras del muelle (#42)
+- `/superadmin/computadoras` con pestañas Pendientes / Aprobadas / Revocadas: quién la pidió, cuándo (nueva columna
+  `authorized_devices.requested_at`), muelle, quién la aprobó y último uso (`last_seen_at`).
+- Aprobar solo desde `PENDING`, con nombre y muelle (por defecto el del administrador que la pidió). La computadora de
+  un administrador no puede quedar «de oficina» (sin muelle), porque el login la rechazaría; la del superadministrador sí.
+- Revocar (o rechazar una solicitud) desde `PENDING` o `APPROVED`: borra en la misma transacción las sesiones abiertas
+  desde ella (además, `getCurrentUser` ya rechazaba sesiones de computadoras no aprobadas). Se puede renombrar mientras
+  no esté revocada. Todo condicional y en la bitácora.
+- `npm run dev:aprobar-computadoras` queda solo para desarrollo; acepta un correo para aprobar solo las de esa cuenta
+  (lo usan las pruebas de navegador, que corren en paralelo).

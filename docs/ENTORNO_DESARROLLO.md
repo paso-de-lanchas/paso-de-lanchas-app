@@ -241,6 +241,7 @@ Con los servicios de Docker encendidos:
 npm ci                        # instala dependencias exactas del package-lock.json (y genera el cliente de Prisma)
 npm run db:migrate            # crea/actualiza las 32 tablas en TU base local
 npm run db:seed               # carga datos de ejemplo (muelles, flota, tarifas, usuarios de prueba)
+npm run dev:aprobar-computadoras  # (cuando la pidas) autoriza tu navegador para entrar como admin/superadmin
 npm run dev                   # abre http://localhost:3000
 ```
 
@@ -361,7 +362,7 @@ gh pr create --base develop                   # o desde la página de GitHub
 
 | Tema | Situación | Propuesta |
 |---|---|---|
-| **Auth.js** | Desde septiembre de 2025, el equipo de Auth.js trabaja en **Better Auth**. Auth.js solo recibe parches de seguridad y recomiendan Better Auth para proyectos nuevos. | Hacer un ADR antes de programar el login y decidir entre seguir con Auth.js o cambiar a Better Auth (también usa Argon2/sesiones en BD y Prisma). |
+| **Login** | Auth.js pasó a mantenimiento en 2025. | **Decidido** (ADR 0002, 2026-11-22): login propio con Argon2 y sesiones en nuestra tabla `sessions`; no se instala librería. |
 | **Pasarela de pago** | El stack dice "Mercado Pago o Stripe". | Mercado Pago: es la opción común en México y acepta tarjetas, OXXO y saldo de la app. |
 | **Versión de Node** | Node 26 ya es LTS activo (octubre 2026); Node 24 sigue con soporte hasta abril de 2028. | Quedarnos en 24 mientras las librerías del stack lo soporten mejor; revisarlo al cierre del semestre. |
 | **Hosting de producción** | Vercel Hobby es no comercial. | Si se usa en la operación real, presupuestar Vercel Pro o mover a otro hosting. |

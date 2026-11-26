@@ -32,8 +32,8 @@ de regreso. Flota ilimitada con estados; al pasajero solo se le muestran unidade
 
 Los documentos de planeación (Word) y los diagramas viven **en línea, en la carpeta compartida del equipo**, no en este
 repositorio:
-- 01 Planeación inicial v1.2 (investigación, alcance, arquitectura, plan por sprint e integrante).
-- 02 Flujo de trabajo en GitHub v1.0.
+- 01 Planeación inicial v1.3 (investigación, alcance, arquitectura, plan por sprint e integrante; v1.3 actualiza el stack).
+- 02 Flujo de trabajo en GitHub v1.1 (v1.1: repo público, revisión sin aprobación obligatoria en `develop`, CI real).
 - 03 Requisitos funcionales v1.0 (127 RF, RF-001 a RF-127).
 - Libro de diagramas (draw.io): modelo relacional v2.1 (Diagrama_ER-V2, 32 tablas) y entidad-relación final en
   notación Chen (Diagrama_ER-Final, 28 entidades). Las hojas Diagrama_ER-Chen y su copia son las versiones de trabajo
@@ -57,9 +57,25 @@ repositorio:
 - **Sprint 2 en curso:** milestone *Sprint 2 · Cimientos* con 17 issues (#4–#20), cada uno con historia, criterios de
   aceptación, RF y una sección **"Cómo programarlo, paso a paso"**; todos asignados. Tabla de issues por persona en
   [docs/MODULOS_Y_RESPONSABLES.md](docs/MODULOS_Y_RESPONSABLES.md).
-- **Siguiente:** que cada quien cierre #4 (preparar su computadora), Omar decide #5 (librería de login, bloquea el
-  login), visita de campo (tarifas, capacidades, máximo de boletos por venta), requisitos no funcionales.
-- **Aún no hay módulos programados:** las pantallas por rol son temporales.
+- **Siguiente:** que cada quien cierre #4 (preparar su computadora) y use `requireRole` en sus módulos; revisar los PRs
+  del equipo; visita de campo (tarifas, capacidades, máximo de boletos por venta), requisitos no funcionales.
+- **Login listo (issue #7, 2026-11-22):** inicio y cierre de sesión por rol, `requireRole` / `assertRole` /
+  `requireApiRole` en `src/lib/auth/require-role.ts` y `src/proxy.ts`. Uso en docs/MODULOS_Y_RESPONSABLES.md.
+  **Seguridad del personal (#9):** bloqueo por intentos, computadoras autorizadas (admin/superadmin) e inactividad.
+  **Registro de pasajero (#6):** `/registro` y `/verificar-correo` con enlace de un solo uso por correo (Mailpit en
+  local). **Contraseñas (#8):** `/recuperar` (enlace de 30 min, un solo uso, cierra todas las sesiones) y
+  `/cuenta/cambiar-contrasena` (pide la actual; la contraseña temporal del personal obliga a cambiarla antes de seguir).
+  Las demás pantallas por rol siguen temporales.
+- **Tarifas (#14, 2026-11-22):** dominio y casos de uso para configurar, consultar vigentes e historial; repositorio
+  Prisma que cierra la anterior y crea la nueva en una transacción; página `/admin/tarifas` protegida para ADMIN.
+  La fecha de inicio se establece al guardar; tarifas de seed siguen siendo aproximadas y pendientes de validar en campo.
+  **Cuentas del personal (#41):** `/superadmin/personal` crea administradores (con muelle) y choferes con contraseña
+  temporal que se ve una sola vez (y se manda por correo); desactiva (cierra sesiones), reactiva, desbloquea y
+  restablece la contraseña. **Computadoras (#42):** `/superadmin/computadoras` (pendientes, aprobadas y revocadas)
+  aprueba con nombre y muelle (oficina solo para el superadmin) y revoca cerrando sus sesiones. Las demás pantallas
+  por rol siguen temporales.
+- **Permisos en GitHub (2026-11-23, D26):** equipo `desarrollo` con permiso de escritura (los 5 suben sus ramas al
+  repo); en `develop` todo entra por PR con la CI en verde y **solo Omar aprueba y fusiona** (`.github/CODEOWNERS`).
 
 ## Stack (versiones instaladas)
 
@@ -68,8 +84,9 @@ repositorio:
   `node_modules/next/dist/docs/` (ver `AGENTS.md`).
 - **PostgreSQL 17 + Prisma 7.10** (cliente generado en `src/generated/prisma`, adaptador `@prisma/adapter-pg`,
   configuración en `prisma.config.ts`). Prisma 7.10.1 está **fijado**: npm marca como "latest" la 8.0 RC, no actualizar.
-- **Zod 4**, **@node-rs/argon2**, **otplib** (QR TOTP). Pendientes de instalar por su módulo: html5-qrcode (Cova),
-  MapLibre GL (Diego), Serwist (Diego), SDK de Mercado Pago (Cova), shadcn/ui (Diego/José), librería de login (ADR 0002).
+- **Zod 4**, **@node-rs/argon2**, **otplib** (QR TOTP). **nodemailer 10.3** (correo SMTP). Pendientes de instalar por su módulo: html5-qrcode (Cova),
+  MapLibre GL (Diego), Serwist (Diego), SDK de Mercado Pago (Cova), shadcn/ui (Diego/José).
+  **Login propio sin librería** (ADR 0002 aceptada): Argon2 + sesiones en la tabla `sessions`.
 - Tiempo real por consultas periódicas (5–10 s). Hosting: **Vercel** + **Neon**. CI: **GitHub Actions**
   (`.github/workflows/ci.yml`).
 - Pruebas: **Vitest 5** + **Playwright**. Calidad: ESLint 9 + Prettier (el Markdown no se formatea), Sentry.
@@ -103,8 +120,8 @@ docs/                         contexto, entorno, módulos, ADR y script SQL de c
 4. **Git:** `main` = producción, `develop` = integración (rama por defecto). Ramas de trabajo desde `develop`:
    `feature|fix|docs|chore|test/<issue>-descripcion`; urgencias en producción: `hotfix/<issue>-descripcion` desde `main`.
    Conventional Commits (tipo en inglés, descripción en español). Todo entra por pull request: hacia `develop` con
-   revisión de alguien de otra área (por ahora la aprobación no es obligatoria en GitHub, ver
-   docs/MODULOS_Y_RESPONSABLES.md) y **squash and merge**; de `develop` a `main` al cierre de sprint con 2 aprobaciones y
+   revisión de alguien de otra área (comentarios) y **aprobación obligatoria de Omar** (`.github/CODEOWNERS`), CI en
+   verde y **squash and merge**, que solo hace Omar (ver docs/MODULOS_Y_RESPONSABLES.md); de `develop` a `main` al cierre de sprint con 2 aprobaciones y
    **merge commit**, etiqueta `v0.N.0`. Guía: CONTRIBUTING.md del repo `.github`.
 5. **Definición de Hecho:** código revisado, pruebas pasando (≥ 80 % en dominio/casos de uso), lint limpio,
    documentación + este archivo + `docs/CONTEXTO_PROYECTO.md` actualizados.
@@ -118,6 +135,7 @@ docker compose up -d       servicios locales (BD 5434, BD de pruebas 5435, Mailp
 npm run dev                app en http://localhost:3000 (salud: /api/health)
 npm run db:migrate         aplica/crea migraciones en la BD local (-- --name descripcion para crear una nueva)
 npm run db:seed            datos de ejemplo (cuentas de prueba al inicio de prisma/seed.ts)
+npm run dev:aprobar-computadoras  autoriza en la BD local las computadoras pendientes (-- correo: solo las de esa cuenta)
 npm run db:studio          ver/editar datos locales con Prisma Studio
 npm run db:test:prepare    migra la BD de pruebas
 npm run check              lint + tipos + pruebas (córrelo antes de cada PR)
@@ -142,6 +160,25 @@ npm run format             Prettier
 | 2026-11-17 | Omar (con Claude) | Entorno Docker y guía de instalación (PR #2); `develop` ya no exige aprobación (el equipo aún no participa) |
 | 2026-11-17 | Omar (con Claude) | Base del proyecto: Next.js 16, Prisma 7 con las 32 tablas y reglas de integridad, seed, Vitest/Playwright, CI, pantallas temporales por rol, reparto de módulos y ADR 0002 (propuesta) |
 | 2026-11-18 | Omar (con Claude) | PR #3 fusionado; sprint 2 planeado en GitHub: milestone (vence sáb 21 nov, 9 p. m.) y 17 issues con pasos de programación, asignados a los 5; guía de contribución actualizada |
+| 2026-11-19 | José | Issue #16: componente de aviso de privacidad (LFPDPPP) y pantalla móvil Mi cuenta para consultar/editar perfil del pasajero (RF-014 y RF-015) |
+| 2026-11-22 | Omar (con Claude) | Documentos Word actualizados: 01 Planeación v1.3 (Node 24, Next.js 16, Prisma 7, PostgreSQL 17, Neon sin Supabase, Docker, login en ADR 0002, proxy) y 02 Flujo de GitHub v1.1 (repo público, revisión sin aprobación obligatoria, CI real) |
+| 2026-11-22 | Omar (con Claude) | Revisión de los PRs #22–#25; issue #27: índices únicos parciales (una asignación activa por chofer y embarcación, una solicitud de descuento pendiente por pasajero) |
+| 2026-11-22 | Omar (con Claude) | ADR 0002 aceptada: login propio (Argon2 + sesiones en BD, `requireRole` en servidor); se descartan Auth.js y Better Auth (#5) |
+| 2026-11-22 | Omar (con Claude) | Login por rol (#7): Argon2, sesiones en BD con hash del token y cookie HttpOnly, `requireRole`/`assertRole`/`requireApiRole`, `proxy.ts`, pantalla de login y cierre de sesión, bitácora; 40 pruebas unitarias y 10 de Playwright |
+| 2026-11-22 | José | Issue #17 (revisión PR #32): cancelación de cuenta dentro de Mi cuenta verificando contraseña actual, borrado lógico y anonimización, revocación de QR, cierre de sesiones, limpieza de `auth_tokens` y `push_subscriptions`, lectura de saldo en transacción y auditoría `user` (RF-016) |
+| 2026-11-22 | José | Issue #18 (revisión PR #25): solicitud y revisión de descuento Estudiante/INAPAM con sesiones reales (`requireRole`/`assertRole`/`requireApiRole`), bloqueo de revisión simultánea con `updateMany`, vigencia en hora de México y cabecera `X-Content-Type-Options: nosniff` (RF-019 y RF-020) |
+| 2026-11-22 | Omar (con Claude) | Seguridad del personal (#9): bloqueo por intentos fallidos, computadoras autorizadas con cookie de dispositivo, cierre por inactividad, `dock_id` opcional en `authorized_devices`, script `dev:aprobar-computadoras` |
+| 2026-11-22 | Omar (con Claude) | Registro de pasajero (#6): cuenta pendiente + monedero en $0 + enlace en una transacción, verificación de un solo uso, respuesta igual si el correo existe, correo por SMTP (nodemailer, Mailpit en local) |
+| 2026-11-23 | Omar (con Claude) | Recuperar y cambiar contraseña (#8): enlace de 30 min de un solo uso (máx. 3 cada 30 min), cierre de sesiones, contraseña temporal obligatoria de cambiar (`requireRole`/`assertRole`), aviso por correo del cambio, `InputError` compartido, cuentas de prueba e2e con `globalSetup` |
+| 2026-11-22 | José | Issue #16 (revisión PR #23): eliminar `userId` oculto del formulario y obtener sesión en servidor con `requireRole`/`assertRole` |
+| 2026-11-23 | Omar (con Claude) | Permisos en GitHub (D26): equipo `desarrollo` con escritura, `.github/CODEOWNERS`, reglas de `develop` (PR obligatorio, CI en verde, aprobación de Omar); guía de contribución actualizada |
+| 2026-11-22 | Omar (con Copilot) | Tarifas (#14): dominio, cambio transaccional con vigencia e historial, validación de categorías/tipos, auditoría y página de administración protegida; se enlaza desde el panel admin |
+| 2026-11-23 | José | Issue #40: galería de vehículos del pasajero con normalización de placas, tarifa vigente por tipo, borrado lógico, vistas `/pasajero/vehiculos` y endpoint `GET /api/pasajero/vehiculos` (RF-039 a RF-042) |
+| 2026-11-23 | José | Issue #48: tablero en vivo de muelles con actualización cada 10 s (`GET /api/pasajero/muelles`), tiempos estimados de salida/llegada (`eta.ts`), horarios, tarifas vigentes (`crossing_minutes` en seed) e historial paginado de viajes (RF-082 a RF-087) |
+| 2026-11-24 | José | Issue #62: formatear fechas de Mis viajes en `America/Mexico_City` (`format-trip-date.ts` con prueba unitaria) y mostrar lancha y transbordador en camino simultáneamente por muelle |
+| 2026-11-24 | Omar (con Claude) | Cuentas del personal (#41): alta de admin/chofer con contraseña temporal de 12 caracteres (`crypto.randomInt`), desactivar con cierre de sesiones, reactivar, desbloquear y restablecer; nunca superadmins ni pasajeros; bitácora; `src/lib/mailer.ts` compartido; chofer `chofer.temporal` en el seed; ayudas e2e en `tests/e2e/auth-helpers.ts` |
+| 2026-11-24 | Omar (con Claude) | Computadoras del muelle (#42): pantalla del superadmin para aprobar (nombre y muelle; la del admin no puede quedar de oficina), renombrar y revocar (borra sus sesiones); columna `authorized_devices.requested_at`; `dev:aprobar-computadoras -- correo` para que las pruebas en paralelo no se crucen |
+| 2026-11-24 | Omar (con Claude) | Revisión de Cova a #55 y #56: cada cambio de cuentas del personal y de computadoras guarda su bitácora **en la misma transacción** (`ChangeAudit`, `auditLogData`); la acción de estado solo acepta DEACTIVATE/REACTIVATE; la computadora de un admin solo se aprueba para **su** muelle |
 
 ## Registro de errores y soluciones
 
@@ -149,7 +186,11 @@ npm run format             Prettier
 |---|---|---|---|
 | 2026-11-17 | `P1000: Authentication failed` al migrar | Un PostgreSQL instalado en Windows ocupaba el puerto 5432 y respondía en lugar del de Docker | El proyecto usa los puertos 5434 (desarrollo) y 5435 (pruebas) |
 | 2026-11-17 | `npm i prisma` instaló la 8.0 RC | npm tiene la etiqueta "latest" en una versión candidata | Prisma y @prisma/client fijados en 7.10.1 |
+| 2026-11-22 | Playwright: `Executable doesn't exist ... chrome-headless-shell` | Faltaba descargar el navegador de pruebas en esa computadora | `npx playwright install chromium` (una vez por computadora) |
+| 2026-11-23 | Playwright: `getByLabel` encuentra dos campos iguales después de navegar | Next.js 16 deja oculta la pantalla anterior al navegar con un enlace | Usar `getByRole("textbox", { name })`, que solo encuentra lo visible |
+| 2026-11-23 | Playwright: `Cannot use 'import.meta' outside a module` al importar Prisma en una prueba | Playwright carga las pruebas como CommonJS y el cliente de Prisma es un módulo ES | Preparar datos con un script `tsx` (`scripts/dev-prepare-e2e-accounts.ts`) desde `globalSetup` |
 | 2026-11-18 | `npm run check` falla en `database-rules.test.ts` | Docker Desktop estaba cerrado (la prueba de integración necesita la base de pruebas) | Abrir Docker Desktop, `docker compose up -d` y `npm run db:test:prepare` (la base de pruebas se vacía al reiniciar Docker) |
+| 2026-11-23 | Un integrante no podía hacer `git push` de su rama ni abrir su PR | Tenía solo permiso de lectura en el repo de la organización (los que sí pudieron trabajaban desde un *fork*) | Equipo `desarrollo` con permiso de escritura (D26) |
 
 ## Datos pendientes de confirmar en campo
 
