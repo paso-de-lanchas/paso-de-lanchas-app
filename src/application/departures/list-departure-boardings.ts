@@ -24,13 +24,13 @@ export function createListDepartureBoardings(repo: DepartureRepository) {
     }
 
     if (
-      input.actorDockId &&
-      input.actorDockId !== departure.originDockId &&
-      input.actorDockId !== departure.destinationDockId
+      !input.actorDockId ||
+      (input.actorDockId !== departure.originDockId &&
+        input.actorDockId !== departure.destinationDockId)
     ) {
       throw new DomainError(
         "DOCK_ACCESS_DENIED",
-        "Solo puedes consultar salidas relacionadas con tu muelle.",
+        "Debes tener un muelle asignado y operar únicamente desde tu muelle.",
       );
     }
 

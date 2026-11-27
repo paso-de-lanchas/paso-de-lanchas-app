@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 import { DomainError } from "@/domain/shared/domain-error";
 import type { AuditLogger, Clock } from "@/application/shared/ports";
 import type { DepartureRecord, DepartureRepository } from "./ports";

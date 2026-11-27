@@ -1,7 +1,8 @@
-﻿import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DomainError } from "@/domain/shared/domain-error";
 import { createCancelDeparture } from "./cancel-departure";
 import { createReturnDeparture } from "./create-return-departure";
+import { createListDepartureBoardings } from "./list-departure-boardings";
 import type { DepartureRecord, DepartureRepository } from "./ports";
 
 function makeDeparture(overrides: Partial<DepartureRecord> = {}): DepartureRecord {
@@ -45,7 +46,7 @@ function makeRepo(overrides: Partial<DepartureRepository> = {}): DepartureReposi
     markDepartureCancelled: vi.fn().mockResolvedValue({
       ...baseDeparture,
       status: "CANCELLED",
-      cancelReason: "Falla mecÃ¡nica",
+      cancelReason: "Falla mecánica",
     }),
     listBoardingsForDeparture: vi.fn().mockResolvedValue([
       {
@@ -119,7 +120,7 @@ function makeRepo(overrides: Partial<DepartureRepository> = {}): DepartureReposi
   };
 }
 
-describe("cancelDeparture y createReturnDeparture (#46)", () => {
+describe("cancelDeparture, createReturnDeparture y listDepartureBoardings (#46)", () => {
   const clock = { now: () => new Date("2026-11-24T10:15:00.000Z") };
 
   it("cancela salida BOARDING, reembolsa monedero, registra efectivo y pasa siguiente a BOARDING", async () => {
@@ -129,7 +130,7 @@ describe("cancelDeparture y createReturnDeparture (#46)", () => {
 
     const res = await cancelDeparture({
       departureId: "dep-1",
-      cancelReason: "Falla mecÃ¡nica",
+      cancelReason: "Falla mecánica",
       actorUserId: "admin-1",
       actorDockId: "dock-coa",
     });
@@ -144,17 +145,52 @@ describe("cancelDeparture y createReturnDeparture (#46)", () => {
     expect(repo.unitOfWork.recordCashRefund).toHaveBeenCalledTimes(1);
     expect(res.nextBoarding?.id).toBe("dep-queued-2");
     expect(res.nextBoarding?.status).toBe("BOARDING");
+    expect(audit.log).toHaveBeenCalled();
   });
 
   it("exige motivo obligatorio al cancelar", async () => {
     const repo = makeRepo();
-    const cancelDeparture = createCancelDeparture(repo, clock);
+    const audit = { log: vi.fn().mockResolvedValue(undefined) };
+    const cancelDeparture = createCancelDeparture(repo, clock, audit);
 
     await expect(
       cancelDeparture({
         departureId: "dep-1",
         cancelReason: "   ",
         actorUserId: "admin-1",
+        actorDockId: "dock-coa",
+      }),
+    ).rejects.toThrow(DomainError);
+  });
+
+  it("rechaza cancelar, crear retorno o listar abordajes sin muelle asignado", async () => {
+    const repo = makeRepo();
+    const audit = { log: vi.fn().mockResolvedValue(undefined) };
+    const cancelDeparture = createCancelDeparture(repo, clock, audit);
+    const returnDeparture = createReturnDeparture(repo, clock, audit);
+    const listBoardings = createListDepartureBoardings(repo);
+
+    await expect(
+      cancelDeparture({
+        departureId: "dep-1",
+        cancelReason: "Clima",
+        actorUserId: "admin-1",
+        actorDockId: null,
+      }),
+    ).rejects.toThrow(DomainError);
+
+    await expect(
+      returnDeparture({
+        departureId: "dep-1",
+        actorUserId: "admin-1",
+        actorDockId: null,
+      }),
+    ).rejects.toThrow(DomainError);
+
+    await expect(
+      listBoardings({
+        departureId: "dep-1",
+        actorDockId: null,
       }),
     ).rejects.toThrow(DomainError);
   });
@@ -168,7 +204,8 @@ describe("cancelDeparture y createReturnDeparture (#46)", () => {
         }),
       ),
     });
-    const returnDeparture = createReturnDeparture(repo, clock);
+    const audit = { log: vi.fn().mockResolvedValue(undefined) };
+    const returnDeparture = createReturnDeparture(repo, clock, audit);
 
     const res = await returnDeparture({
       departureId: "dep-1",
@@ -181,5 +218,6 @@ describe("cancelDeparture y createReturnDeparture (#46)", () => {
     expect(res.returnDeparture.originDockId).toBe("dock-val");
     expect(res.returnDeparture.destinationDockId).toBe("dock-coa");
     expect(res.returnDeparture.status).toBe("QUEUED");
+    expect(audit.log).toHaveBeenCalledTimes(1);
   });
 });

@@ -4,9 +4,9 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { assertRole } from "@/lib/auth/require-role";
 import { prisma } from "@/infrastructure/db/prisma";
+import { prismaAuditLogger } from "@/infrastructure/audit/prisma-audit-logger";
 import { PrismaDepartureRepository } from "@/infrastructure/departures/prisma-departure-repository";
 import { createCancelDeparture } from "@/application/departures/cancel-departure";
-import type { AuditLogger } from "@/application/shared/ports";
 import { DomainError } from "@/domain/shared/domain-error";
 
 export interface CancelDepartureActionState {
@@ -16,28 +16,6 @@ export interface CancelDepartureActionState {
 
 const systemClock = {
   now: () => new Date(),
-};
-
-const prismaAuditLogger: AuditLogger = {
-  log: async (entry) => {
-    const client = prisma as unknown as {
-      auditLog?: {
-        create: (args: { data: Record<string, unknown> }) => Promise<unknown>;
-      };
-    };
-    if (client.auditLog?.create) {
-      await client.auditLog.create({
-        data: {
-          userId: entry.userId,
-          deviceId: entry.deviceId ?? null,
-          action: entry.action,
-          entity: entry.entity,
-          entityId: entry.entityId ?? null,
-          details: entry.details ?? {},
-        },
-      });
-    }
-  },
 };
 
 const cancelSchema = z.object({
@@ -66,7 +44,8 @@ export async function cancelDepartureAction(
     const actorDockId = dbUser?.dockId ?? null;
 
     const repo = new PrismaDepartureRepository(prisma);
-    const cancelUseCase = createCancelDeparture(repo, systemClock, prismaAuditLogger);
+    const audit = prismaAuditLogger(prisma);
+    const cancelUseCase = createCancelDeparture(repo, systemClock, audit);
     const result = await cancelUseCase({
       departureId: parsed.departureId,
       cancelReason: parsed.cancelReason,

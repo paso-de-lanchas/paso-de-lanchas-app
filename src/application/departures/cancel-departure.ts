@@ -1,4 +1,4 @@
-﻿import { assertDepartureTransition } from "@/domain/departures/departure-state";
+import { assertDepartureTransition } from "@/domain/departures/departure-state";
 import { DomainError } from "@/domain/shared/domain-error";
 import type { AuditLogger, Clock } from "@/application/shared/ports";
 import type { CashRefundItem, PassengerRefundDetail } from "./refund-boardings";
@@ -26,14 +26,10 @@ export interface CancelDepartureResult {
   nextBoarding: DepartureRecord | null;
 }
 
-const noopAuditLogger: AuditLogger = {
-  log: async () => {},
-};
-
 export function createCancelDeparture(
   repo: DepartureRepository,
   clock: Clock,
-  auditLogger: AuditLogger = noopAuditLogger,
+  auditLogger: AuditLogger,
 ) {
   const startNextBoarding = createStartNextBoarding(repo, clock, auditLogger);
 
@@ -63,8 +59,11 @@ export function createCancelDeparture(
       throw new DomainError("DEPARTURE_NOT_FOUND", "No se encontró la salida indicada.");
     }
 
-    if (input.actorDockId && input.actorDockId !== initialDeparture.originDockId) {
-      throw new DomainError("DOCK_ACCESS_DENIED", "Solo puedes cancelar salidas de tu muelle.");
+    if (!input.actorDockId || input.actorDockId !== initialDeparture.originDockId) {
+      throw new DomainError(
+        "DOCK_ACCESS_DENIED",
+        "Debes tener un muelle asignado y operar únicamente desde tu muelle.",
+      );
     }
 
     assertDepartureTransition(initialDeparture.status, "CANCELLED");
@@ -76,8 +75,11 @@ export function createCancelDeparture(
         ? ((await uow.lockDepartureForUpdate(tx, departureId)) ?? initialDeparture)
         : initialDeparture;
 
-      if (input.actorDockId && input.actorDockId !== current.originDockId) {
-        throw new DomainError("DOCK_ACCESS_DENIED", "Solo puedes cancelar salidas de tu muelle.");
+      if (!input.actorDockId || input.actorDockId !== current.originDockId) {
+        throw new DomainError(
+          "DOCK_ACCESS_DENIED",
+          "Debes tener un muelle asignado y operar únicamente desde tu muelle.",
+        );
       }
 
       assertDepartureTransition(current.status, "CANCELLED");

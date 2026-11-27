@@ -1,4 +1,4 @@
-﻿import { Money } from "@/domain/shared/money";
+import { Money } from "@/domain/shared/money";
 import type {
   CashRefundRecordInput,
   CreateNotificationInput,

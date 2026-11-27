@@ -164,3 +164,19 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   return getCurrentUserUseCase(token);
 });
+
+/** Identificador de la computadora autorizada ligada a la sesión actual del personal. */
+export async function getCurrentSessionDeviceId(userId: string): Promise<string | null> {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (!token) return null;
+
+  const session = await prisma.session.findFirst({
+    where: {
+      sessionToken: cryptoTokenService.hash(token),
+      userId,
+      expiresAt: { gt: systemClock.now() },
+    },
+    select: { deviceId: true },
+  });
+  return session?.deviceId ?? null;
+}

@@ -17,7 +17,7 @@ export interface CreateReturnDepartureResult {
 export function createReturnDeparture(
   repo: DepartureRepository,
   clock: Clock,
-  auditLogger?: AuditLogger,
+  auditLogger: AuditLogger,
 ) {
   return async function returnDepartureUseCase(
     input: CreateReturnDepartureInput,
@@ -36,13 +36,13 @@ export function createReturnDeparture(
     }
 
     if (
-      input.actorDockId &&
-      input.actorDockId !== current.destinationDockId &&
-      input.actorDockId !== current.originDockId
+      !input.actorDockId ||
+      (input.actorDockId !== current.destinationDockId &&
+        input.actorDockId !== current.originDockId)
     ) {
       throw new DomainError(
         "DOCK_ACCESS_DENIED",
-        "No tienes permisos para finalizar este viaje en tu muelle.",
+        "Debes tener un muelle asignado y operar únicamente desde tu muelle.",
       );
     }
 
@@ -84,22 +84,20 @@ export function createReturnDeparture(
       return { finishedDeparture, returnDeparture };
     });
 
-    if (auditLogger) {
-      await auditLogger.log({
-        userId: input.actorUserId,
-        action: "TRIP_FINISHED_RETURN_QUEUED",
-        entity: "departures",
-        entityId: result.returnDeparture.id,
-        details: {
-          finishedDepartureId: current.id,
-          returnDepartureId: result.returnDeparture.id,
-          originDockId: returnOriginDockId,
-          destinationDockId: returnDestinationDockId,
-          queuePosition: result.returnDeparture.queuePosition,
-          finishedAt: now.toISOString(),
-        },
-      });
-    }
+    await auditLogger.log({
+      userId: input.actorUserId,
+      action: "TRIP_FINISHED_RETURN_QUEUED",
+      entity: "departures",
+      entityId: result.returnDeparture.id,
+      details: {
+        finishedDepartureId: current.id,
+        returnDepartureId: result.returnDeparture.id,
+        originDockId: returnOriginDockId,
+        destinationDockId: returnDestinationDockId,
+        queuePosition: result.returnDeparture.queuePosition,
+        finishedAt: now.toISOString(),
+      },
+    });
 
     return result;
   };

@@ -1,4 +1,4 @@
-﻿import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DomainError } from "@/domain/shared/domain-error";
 import type { AuditLogger, Clock } from "@/application/shared/ports";
 import { createAddToWaitlist } from "./add-to-waitlist";

@@ -8,6 +8,7 @@ interface ModuleItem {
   name: string;
   owner: string;
   requirements: string;
+  href?: string;
 }
 
 interface ModulePlaceholderProps {
@@ -40,7 +41,15 @@ export function ModulePlaceholder({ role, userName, modules }: ModulePlaceholder
       <ul className="flex flex-col gap-3">
         {modules.map((m) => (
           <li key={m.name} className="border-line rounded-2xl border bg-white p-4">
-            <p className="font-bold">{m.name}</p>
+            <p className="font-bold">
+              {m.href ? (
+                <Link className="text-brand hover:underline" href={m.href}>
+                  {m.name}
+                </Link>
+              ) : (
+                m.name
+              )}
+            </p>
             <p className="text-ink-muted text-sm">
               {m.requirements} · Responsable: {m.owner}
             </p>

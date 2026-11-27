@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 import { DomainError } from "@/domain/shared/domain-error";
 import { reorderQueue } from "@/domain/departures/queue";
 import type { AuditLogger } from "@/application/shared/ports";

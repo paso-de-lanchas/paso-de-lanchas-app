@@ -72,6 +72,19 @@ export default async function PassengerPage() {
           </Link>
 
           <Link
+            href="/pasajero/saldo"
+            className="border-brand/20 hover:border-brand flex flex-col justify-between rounded-2xl border bg-white p-4 shadow-xs transition"
+          >
+            <div>
+              <p className="font-heading text-brand text-base font-bold">Mi saldo y movimientos</p>
+              <p className="text-ink-muted mt-1 text-xs">
+                Consulta tu saldo, historial y comprobantes (RF-021 a RF-031)
+              </p>
+            </div>
+            <span className="text-brand mt-3 text-xs font-bold">Consultar →</span>
+          </Link>
+
+          <Link
             href="/pasajero/vehiculos"
             className="border-brand/20 hover:border-brand flex flex-col justify-between rounded-2xl border bg-white p-4 shadow-xs transition"
           >
