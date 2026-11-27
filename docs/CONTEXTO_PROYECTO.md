@@ -244,3 +244,14 @@ Este proyecto es **ingeniería de software**: todo código debe:
 ### 2026-11-26 — Fila y salidas (#43) y choferes (#13)
 - Fila y salidas (#43): se incorporaron la validación de muelle en `enqueueDeparture`, el bloqueo de muelle con `FOR UPDATE` dentro de transacciones, el registro en bitácora de auditoría (`DEPARTURE_ENQUEUED`, `DEPARTURE_BOARDING_STARTED` y `DEPARTURE_BOARDING_CLOSED`) y pruebas de integración con chofer real.
 - Choferes (#13): se implementaron los casos de uso (`list-drivers`, `update-driver`, `assign-driver-to-vessel`, `unassign-driver`), el repositorio Prisma (`PrismaDriverRepository`) y las vistas de administración en `/admin/choferes` y `/admin/choferes/[id]` protegidas con `requireRole("ADMIN", "SUPERADMIN")`.
+### 2026-11-27 — Consulta de la bitácora (#69)
+- `/superadmin/bitacora` (solo `SUPERADMIN`): tabla de 50 registros por página, la más reciente primero, con fecha en
+  hora de México, usuario, acción (con nombre en español), sobre qué, computadora y detalle.
+- Filtros en la dirección (`usuario`, `accion`, `desde`, `hasta`, `pagina`), validados con Zod uno por uno. Lo
+  inválido se ignora y se avisa, así que un enlace alterado nunca truena la página. "Hasta" incluye todo su día
+  (México es UTC-6 todo el año).
+- El detalle oculta en cualquier nivel las llaves que parezcan contraseña, token, secreto, hash, cookie o tarjeta.
+- La base ya impedía modificar o borrar (trigger `audit_logs_immutable`); ahora una prueba de integración lo confirma.
+- Lo que hoy registra la bitácora (RF-122): inicios y cierres de sesión, rechazos, registro, contraseñas, cuentas del
+  personal, computadoras, recargas, reembolsos, ajustes, tarifas, embarcaciones, fila y salidas. Con el #67 se suman
+  el cobro del cruce y el QR rechazado; faltan las de choferes (#66) y cancelaciones (#59), que llegan con sus PRs.
