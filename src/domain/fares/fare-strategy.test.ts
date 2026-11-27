@@ -107,6 +107,35 @@ describe("createFareStrategy", () => {
         at,
       ).fareId,
     ).toBe("general");
+    // Un descuento aprobado siempre trae fecha de vencimiento (RF-020); sin ella no se aplica.
+    expect(
+      strategy.resolve(
+        { discount: { type: "STUDENT", status: "APPROVED", validUntil: null } },
+        fares,
+        at,
+      ).fareId,
+    ).toBe("general");
+  });
+
+  it("deja de aplicar el descuento justo al terminar su último día en hora de México", () => {
+    const general = fare({ id: "general" });
+    const student = fare({ id: "student", category: "STUDENT" });
+    const discount = {
+      type: "STUDENT" as const,
+      status: "APPROVED" as const,
+      validUntil: new Date("2026-11-22T00:00:00.000Z"),
+    };
+    const strategy = createFareStrategy("BOAT");
+    // 22 nov 23:59 en México = 23 nov 05:59 UTC: todavía vigente.
+    expect(
+      strategy.resolve({ discount }, [general, student], new Date("2026-11-23T05:59:00.000Z"))
+        .fareId,
+    ).toBe("student");
+    // 23 nov 00:00 en México = 23 nov 06:00 UTC: ya venció.
+    expect(
+      strategy.resolve({ discount }, [general, student], new Date("2026-11-23T06:00:00.000Z"))
+        .fareId,
+    ).toBe("general");
   });
 
   it("uses the ferry fare for the exact vehicle type or the pedestrian fare", () => {

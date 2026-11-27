@@ -1,28 +1,17 @@
-import { dateKeyInMexico, dateKeyUtc, resolveCurrentFare } from "./fare-strategy-helpers";
-import type {
-  FareOption,
-  FareStrategy,
-  FareStrategyInput,
-  PassengerDiscount,
-  ResolvedFare,
-} from "./fare-strategy";
+import { isDiscountActive } from "@/domain/account/discount";
 
-function isDiscountCurrent(
-  discount: PassengerDiscount | null | undefined,
-  at: Date,
-): discount is PassengerDiscount {
-  if (!discount || discount.status !== "APPROVED") return false;
-  if (discount.validUntil === null) return true;
+import { resolveCurrentFare } from "./fare-strategy-helpers";
+import type { FareOption, FareStrategy, FareStrategyInput, ResolvedFare } from "./fare-strategy";
 
-  const validUntil = dateKeyUtc(discount.validUntil);
-  const boardingDate = dateKeyInMexico(at);
-  return validUntil !== null && boardingDate !== null && validUntil >= boardingDate;
-}
-
+/**
+ * Lancha: tarifa general, o la de estudiante / INAPAM si el pasajero tiene un descuento
+ * aprobado y vigente al momento de abordar. La vigencia usa la MISMA regla que la revisión de
+ * descuentos (`isDiscountActive`, hora de México): el dinero no puede tener dos versiones.
+ */
 export class BoatFareStrategy implements FareStrategy {
   resolve(input: FareStrategyInput, fares: readonly FareOption[], at: Date): ResolvedFare {
     const discount = input.discount;
-    const category = isDiscountCurrent(discount, at) ? discount.type : "GENERAL";
+    const category = discount && isDiscountActive(discount, at) ? discount.type : "GENERAL";
     return resolveCurrentFare(fares, "BOAT", category, null, at);
   }
 }

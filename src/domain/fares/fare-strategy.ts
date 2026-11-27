@@ -1,9 +1,7 @@
+import type { DiscountRequestStatus, DiscountType } from "@/domain/account/discount";
 import type { Money } from "@/domain/shared/money";
 
 import type { FareCategory, VesselKind } from "./fare";
-
-export type DiscountType = "STUDENT" | "INAPAM";
-export type DiscountStatus = "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED";
 
 export interface FareOption {
   id: string;
@@ -17,7 +15,7 @@ export interface FareOption {
 
 export interface PassengerDiscount {
   type: DiscountType;
-  status: DiscountStatus;
+  status: DiscountRequestStatus;
   validUntil: Date | null;
 }
 
