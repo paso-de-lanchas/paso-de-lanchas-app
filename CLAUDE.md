@@ -68,6 +68,9 @@ repositorio:
   **Saldo y recargas (#37):** `/pasajero/saldo`, búsqueda y recarga en efectivo en `/admin/recargas`, reembolsos,
   ajustes con motivo, comprobantes, límites configurables y caja abierta al primer cobro. El código quedó en la rama
   `feature/37-saldo-y-recargas`; el push y PR los realiza Cova.
+- **Tarifa vigente (#15):** estrategias de dominio para lancha y transbordador; seleccionan la tarifa vigente en la hora
+  del abordaje y aplican descuento solo si está aprobado y no ha vencido.
+  Las demás pantallas por rol siguen temporales.
   Las demás pantallas por rol siguen temporales.
 - **Tarifas (#14, 2026-11-22):** dominio y casos de uso para configurar, consultar vigentes e historial; repositorio
   Prisma que cierra la anterior y crea la nueva en una transacción; página `/admin/tarifas` protegida para ADMIN.
@@ -189,6 +192,7 @@ npm run format             Prettier
 | 2026-11-22 | José | Issue #16 (revisión PR #23): eliminar `userId` oculto del formulario y obtener sesión en servidor con `requireRole`/`assertRole` |
 | 2026-11-23 | Omar (con Claude) | Permisos en GitHub (D26): equipo `desarrollo` con escritura, `.github/CODEOWNERS`, reglas de `develop` (PR obligatorio, CI en verde, aprobación de Omar); guía de contribución actualizada |
 | 2026-11-23 | Cova | Issue #37: saldo e historial paginado, top-up en efectivo con límites configurables, ajustes/reembolsos auditados en la misma transacción, comprobante, caja automática en computadora autorizada y control de concurrencia optimista |
+| 2026-11-23 | Cova | Tarifa vigente (#15): Factory y estrategias de dominio para lancha y transbordador, vigencia de tarifas al abordar y descuento aprobado vigente |
 | 2026-11-22 | Omar (con Copilot) | Tarifas (#14): dominio, cambio transaccional con vigencia e historial, validación de categorías/tipos, auditoría y página de administración protegida; se enlaza desde el panel admin |
 | 2026-11-23 | José | Issue #40: galería de vehículos del pasajero con normalización de placas, tarifa vigente por tipo, borrado lógico, vistas `/pasajero/vehiculos` y endpoint `GET /api/pasajero/vehiculos` (RF-039 a RF-042) |
 | 2026-11-23 | José | Issue #48: tablero en vivo de muelles con actualización cada 10 s (`GET /api/pasajero/muelles`), tiempos estimados de salida/llegada (`eta.ts`), horarios, tarifas vigentes (`crossing_minutes` en seed) e historial paginado de viajes (RF-082 a RF-087) |
@@ -198,6 +202,7 @@ npm run format             Prettier
 | 2026-11-24 | Omar (con Claude) | Revisión de Cova a #55 y #56: cada cambio de cuentas del personal y de computadoras guarda su bitácora **en la misma transacción** (`ChangeAudit`, `auditLogData`); la acción de estado solo acepta DEACTIVATE/REACTIVATE; la computadora de un admin solo se aprueba para **su** muelle |
 | 2026-11-24 | Diego (con Claude) | QR dinámico (#20): dominio `qr-payload` (`PL1.<credencial>.<código>`), cifrado AES-256-GCM del secreto TOTP con `QR_SIGNING_SECRET`, adaptador de otplib, casos de uso `issueQrCredential` y `verifyQr` (±1 paso, reloj inyectado), repositorio Prisma, ruta `POST /api/qr/credential` y pantalla `/pasajero/qr` con IndexedDB, contador y Wake Lock |
 | 2026-11-25 | Diego (con Claude) | Revisión del QR (#20): botón "Mostrar mi QR" en el inicio del pasajero; `GET /api/qr/credential` y `isCredentialActiveForUser` para descartar una credencial revocada y pedir una nueva (solo con `active: false` explícito; sin red se conserva la guardada); `LogoutButton` ahora es componente de cliente y borra `qr:*` de IndexedDB (`src/lib/qr-storage.ts`) antes de cerrar sesión; reintento único si dos peticiones chocan con el índice `qr_credentials_one_active_per_user` (P2002); `createPrismaQrRepository(client)` acepta el cliente; prueba de integración del repositorio; `QR_SIGNING_SECRET` obligatoria en producción (`env.ts`, `ci.yml`) y documentada en `.env.example` y `docs/ENTORNO_DESARROLLO.md` |
+| 2026-11-25 | Cova | #15: `fare-strategy` reutiliza `VesselKind` y `FareCategory` del dominio de tarifas, sin duplicar sus tipos |
 
 ## Registro de errores y soluciones
 

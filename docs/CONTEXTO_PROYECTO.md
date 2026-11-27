@@ -199,6 +199,9 @@ Este proyecto es **ingeniería de software**: todo código debe:
   contraseña desde la cuenta pide la actual y cierra las demás sesiones. Con contraseña temporal
   (`must_change_password`, la que asigna el superadmin) el login lleva a `/cuenta/cambiar-contrasena` y `requireRole` /
   `assertRole` no dejan hacer nada más hasta cambiarla. Cada cambio avisa por correo al dueño.
+- Calcular tarifa vigente al abordar (#15): Factory elige la estrategia de lancha o transbordador; ambas seleccionan
+  la tarifa válida en el instante del abordaje. La estrategia de lancha aplica descuentos aprobados hasta el último día
+  de vigencia en la fecha local de Coatzacoalcos; si no hay una tarifa aplicable, devuelve `FARE_NOT_CONFIGURED`.
 
 ### 2026-11-23 — Permisos del equipo en GitHub
 - Un integrante no podía hacer push de su rama: todos tenían solo **lectura** en el repo de la organización. Pamela y
