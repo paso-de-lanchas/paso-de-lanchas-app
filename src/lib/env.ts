@@ -18,8 +18,8 @@ const serverEnvSchema = z
     SMTP_USER: z.string().optional(),
     SMTP_PASSWORD: z.string().optional(),
     MAIL_FROM: z.string().default("Paso de Lanchas <no-responder@pasolanchas.test>"),
-    MERCADOPAGO_ACCESS_TOKEN: z.string().optional(),
-    MERCADOPAGO_WEBHOOK_SECRET: z.string().optional(),
+    MP_ACCESS_TOKEN: z.string().optional(),
+    MP_WEBHOOK_SECRET: z.string().optional(),
     SENTRY_DSN: z.string().optional(),
   })
   .superRefine((data, ctx) => {
@@ -31,7 +31,6 @@ const serverEnvSchema = z
       });
     }
   });
-
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 
 function loadEnv(): ServerEnv {

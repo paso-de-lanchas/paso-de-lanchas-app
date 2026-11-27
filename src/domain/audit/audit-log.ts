@@ -87,6 +87,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   DEVICE_RENAMED: "Computadora renombrada",
   DEVICE_REVOKED: "Computadora revocada",
   WALLET_TOPUP_CASH: "Recarga en efectivo",
+  TOPUP_ONLINE_CONFIRMED: "Recarga en línea confirmada",
+  WEBHOOK_REJECTED: "Notificación de pago rechazada",
   WALLET_REFUND: "Reembolso al saldo",
   WALLET_ADJUSTED: "Ajuste de saldo",
   WALLET_FARE_CHARGE: "Cobro del cruce",

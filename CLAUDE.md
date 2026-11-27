@@ -69,6 +69,10 @@ repositorio:
   #46 (PR #59), horario e incidentes #47 (PR #60), choferes #13 (PR #66), componentes #19 (PR #54).
 - **Permisos en GitHub (D26):** equipo `desarrollo` con escritura; en `develop` todo entra por PR con la CI en verde y
   **solo Omar aprueba y fusiona** (`.github/CODEOWNERS`).
+- **Recarga en línea (#38):** Checkout Pro de prueba con el SDK oficial `mercadopago` 3.6.2; crea pagos pendientes
+  idempotentes, valida la firma y consulta el pago en Mercado Pago antes de confirmar. El webhook acredita el monedero
+  y registra la bitácora en una transacción; `/pasajero/saldo/recargar` muestra el estado consultado por el pasajero.
+  Implementación lista en `feature/38-recarga-en-linea`; pendiente PR y revisión.
 
 ## Stack (versiones instaladas)
 
@@ -77,8 +81,9 @@ repositorio:
   `node_modules/next/dist/docs/` (ver `AGENTS.md`).
 - **PostgreSQL 17 + Prisma 7.10** (cliente generado en `src/generated/prisma`, adaptador `@prisma/adapter-pg`,
   configuración en `prisma.config.ts`). Prisma 7.10.1 está **fijado**: npm marca como "latest" la 8.0 RC, no actualizar.
-- **Zod 4**, **@node-rs/argon2**, **otplib** (QR TOTP). **nodemailer 10.3** (correo SMTP). **html5-qrcode 2.3.8** (lector de cámara de la taquilla). Pendientes de instalar
-  por su módulo: MapLibre GL (Diego), Serwist (Diego), SDK de Mercado Pago (Cova), shadcn/ui (Diego/José).
+- **Zod 4**, **@node-rs/argon2**, **otplib** (QR TOTP), **mercadopago 3.6.2** fijado (Checkout Pro) y
+  **nodemailer 10.3** (correo SMTP), **html5-qrcode 2.3.8** (lector de cámara de la taquilla). Pendientes de instalar
+  por su módulo: MapLibre GL (Diego), Serwist (Diego), shadcn/ui (Diego/José).
   **Login propio sin librería** (ADR 0002 aceptada): Argon2 + sesiones en la tabla `sessions`.
 - Tiempo real por consultas periódicas (5–10 s). Hosting: **Vercel** + **Neon**. CI: **GitHub Actions**
   (`.github/workflows/ci.yml`).
@@ -184,6 +189,7 @@ npm run format             Prettier
 | 2026-11-27 | Pamela | Fila y salidas (#43, PR #58): auditoría obligatoria en casos de uso, bloqueo de muelle FOR UPDATE en transacciones, verificación global de embarcacion activa con indice unico parcial, validación Zod y prueba E2E de flujo de fila/abordaje |
 | 2026-11-27 | Omar (con Claude) | Escaneo del QR (#44): `/admin/taquilla` con cámara (html5-qrcode 2.3.8) o lector USB; `boardWithQr` en una transacción (bloqueo de la salida, cupo, tarifa con la Strategy de #15, cobro `FARE_CHARGE`, venta `QR_BALANCE`, abordaje con lugar, credencial y paso de tiempo, bitácora); al llenarse cierra y pasa la siguiente; vehículos en el transbordador; aviso al pasajero cada 5 s (`GET /api/pasajero/abordaje`); la tarifa usa una sola regla de descuento (`isDiscountActive`); pruebas de concurrencia (20 escaneos / 10 lugares) y de navegador |
 | 2026-11-27 | Omar (con Claude) | Bitácora (#69): `/superadmin/bitacora` de solo lectura con filtros por usuario, acción y rango de fechas en hora de México (Zod; un filtro inválido se ignora y se avisa), 50 por página, detalle con contraseñas, tokens y secretos ocultos; prueba de integración de que la base no deja modificar ni borrar (RF-123) |
+| 2026-11-27 | Cova | Issue #38: Checkout Pro de prueba, pagos pendientes idempotentes, webhook con firma válida y consulta al proveedor, crédito `TOPUP_ONLINE` y bitácora en una transacción, estado de pago protegido por pasajero y pantalla de recarga; integración repetida en paralelo acredita una sola vez; implementación lista, pendiente PR y revisión |
 
 ## Registro de errores y soluciones
 
@@ -205,6 +211,7 @@ npm run format             Prettier
 | 2026-11-25 | `zsh: no matches found: --include=*.ts` al usar `grep` | zsh expande `*.ts` antes de pasarlo a `grep` | Poner el patrón entre comillas: `--include="*.ts"` |
 | 2026-11-27 | El inicio del pasajero mostraba dos veces el tablero de muelles | Al resolver un conflicto quedó repetido `<DocksLiveBoard>` en `src/app/pasajero/page.tsx` | Se quitó el repetido (PR del #44); al resolver conflictos, revisar la pantalla y no solo que compile |
 | 2026-11-27 | Playwright: `getByRole("alert")` encuentra dos elementos | Next.js agrega su propio aviso de navegación con `role="alert"` | Darle nombre a la región (`aria-label`) y buscarla con `getByRole("alert", { name })` |
+| 2026-11-27 | La prueba de 20 escaneos QR simultáneos agotaba la espera de transacción al correr toda la suite | Prisma agotaba el `maxWait` predeterminado mientras las pruebas de integración competían por conexiones | Aumentar `maxWait` de la transacción a 10 s y el límite de esa prueba a 15 s |
 
 
 ## Datos pendientes de confirmar en campo

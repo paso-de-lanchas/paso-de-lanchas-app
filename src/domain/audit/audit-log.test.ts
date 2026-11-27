@@ -65,6 +65,8 @@ describe("detalle de la bitácora", () => {
 
   it("traduce las acciones conocidas y deja igual las nuevas", () => {
     expect(auditActionLabel("WALLET_TOPUP_CASH")).toBe("Recarga en efectivo");
+    expect(auditActionLabel("TOPUP_ONLINE_CONFIRMED")).toBe("Recarga en línea confirmada");
+    expect(auditActionLabel("WEBHOOK_REJECTED")).toBe("Notificación de pago rechazada");
     expect(auditActionLabel("ALGO_NUEVO")).toBe("ALGO_NUEVO");
   });
 });
