@@ -196,20 +196,27 @@ export function DocksLiveBoard({ initialStatus }: DocksLiveBoardProps) {
                 En camino hacia {dock.dockName}
               </p>
 
-              {dock.inbound ? (
-                <div className="border-line bg-surface space-y-1.5 rounded-xl border p-3.5 text-xs">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-ink font-bold">
-                      {dock.inbound.vesselName} ({formatKind(dock.inbound.vesselKind)})
-                    </p>
-                    <span className="text-brand font-bold">
-                      Llega en: {dock.inbound.estimatedArrivalLabel}
-                    </span>
-                  </div>
-                  <p className="text-ink-muted">
-                    Desde {dock.inbound.originDockName}
-                    {dock.inbound.vesselColor ? ` · Color ${dock.inbound.vesselColor}` : ""}
-                  </p>
+              {dock.inbound.length > 0 ? (
+                <div className="space-y-2">
+                  {dock.inbound.map((vessel) => (
+                    <div
+                      key={vessel.departureId}
+                      className="border-line bg-surface space-y-1.5 rounded-xl border p-3.5 text-xs"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-ink font-bold">
+                          {vessel.vesselName} ({formatKind(vessel.vesselKind)})
+                        </p>
+                        <span className="text-brand font-bold">
+                          Llega en: {vessel.estimatedArrivalLabel}
+                        </span>
+                      </div>
+                      <p className="text-ink-muted">
+                        Desde {vessel.originDockName}
+                        {vessel.vesselColor ? ` · Color ${vessel.vesselColor}` : ""}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <p className="border-line text-ink-muted rounded-xl border border-dashed p-3.5 text-xs">

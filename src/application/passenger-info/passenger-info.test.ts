@@ -62,7 +62,7 @@ describe("passenger-info application use cases", () => {
   const fixedNow = new Date("2026-11-23T14:20:00.000Z");
   const fixedClock: Clock = { now: () => fixedNow };
 
-  it("muestra simultáneamente una lancha y un transbordador abordando en el mismo muelle junto con embarcación en camino", async () => {
+  it("muestra lancha y transbordador abordando y todas las embarcaciones en camino ordenadas por llegada", async () => {
     const repo = new InMemoryPassengerInfoRepository();
     repo.snapshot.boardingDepartures.push(
       {
@@ -92,16 +92,38 @@ describe("passenger-info application use cases", () => {
         driverName: "Capitán Ferry",
       },
     );
-    repo.snapshot.inboundDepartures.push({
-      id: "dep-2",
-      destinationDockId: "dock-coa",
-      originDockName: "Villa Allende",
-      vesselName: "Lancha 2",
-      vesselKind: "BOAT",
-      vesselColor: "Blanco",
-      vesselPhotoUrl: null,
-      departedAt: new Date("2026-11-23T14:14:00.000Z"),
-    });
+    repo.snapshot.inboundDepartures.push(
+      {
+        id: "dep-in-boat-later",
+        destinationDockId: "dock-coa",
+        originDockName: "Villa Allende",
+        vesselName: "Lancha 2",
+        vesselKind: "BOAT",
+        vesselColor: "Blanco",
+        vesselPhotoUrl: null,
+        departedAt: new Date("2026-11-23T14:14:00.000Z"),
+      },
+      {
+        id: "dep-in-ferry",
+        destinationDockId: "dock-coa",
+        originDockName: "Villa Allende",
+        vesselName: "Transbordador 2",
+        vesselKind: "FERRY",
+        vesselColor: "Gris",
+        vesselPhotoUrl: null,
+        departedAt: new Date("2026-11-23T14:16:00.000Z"),
+      },
+      {
+        id: "dep-in-boat-first",
+        destinationDockId: "dock-coa",
+        originDockName: "Villa Allende",
+        vesselName: "Lancha 3",
+        vesselKind: "BOAT",
+        vesselColor: "Azul",
+        vesselPhotoUrl: null,
+        departedAt: new Date("2026-11-23T14:12:00.000Z"),
+      },
+    );
 
     const getDocksStatus = createGetDocksStatus({ repo, clock: fixedClock });
     const status = await getDocksStatus();
@@ -117,12 +139,18 @@ describe("passenger-info application use cases", () => {
     expect(coa.boarding[0]?.estimatedDepartureLabel).toBe("5 min");
     expect(coa.boarding[1]?.vesselName).toBe("Transbordador 1");
     expect(coa.boarding[1]?.estimatedDepartureLabel).toBe("Abordaje cerrado · por salir");
-    expect(coa.inbound?.vesselName).toBe("Lancha 2");
-    expect(coa.inbound?.estimatedArrivalLabel).toBe("4 min");
+
+    expect(coa.inbound).toHaveLength(3);
+    expect(coa.inbound[0]?.vesselName).toBe("Lancha 3");
+    expect(coa.inbound[0]?.estimatedArrivalLabel).toBe("2 min");
+    expect(coa.inbound[1]?.vesselName).toBe("Lancha 2");
+    expect(coa.inbound[1]?.estimatedArrivalLabel).toBe("4 min");
+    expect(coa.inbound[2]?.vesselName).toBe("Transbordador 2");
+    expect(coa.inbound[2]?.estimatedArrivalLabel).toBe("6 min");
 
     const val = status.docks[1]!;
     expect(val.boarding).toEqual([]);
-    expect(val.inbound).toBeNull();
+    expect(val.inbound).toEqual([]);
   });
 
   it("agrupa horarios de servicio por muelle y formatea las tarifas vigentes", async () => {

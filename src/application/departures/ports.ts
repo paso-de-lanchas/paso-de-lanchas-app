@@ -1,4 +1,4 @@
-﻿import type { DepartureStatus } from "@/domain/departures/departure-state";
+import type { DepartureStatus } from "@/domain/departures/departure-state";
 import type { VesselKind } from "@/domain/fleet/vessel";
 
 export interface DockSummary {

@@ -1,4 +1,4 @@
-﻿import { Prisma, type PrismaClient } from "@/generated/prisma/client";
+import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { DomainError } from "@/domain/shared/domain-error";
 import type { DepartureStatus } from "@/domain/departures/departure-state";
 import type { VesselKind } from "@/domain/fleet/vessel";

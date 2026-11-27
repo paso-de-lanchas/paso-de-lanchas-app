@@ -1,4 +1,4 @@
-﻿import { requireRole } from "@/lib/auth/require-role";
+import { requireRole } from "@/lib/auth/require-role";
 import { prisma } from "@/infrastructure/db/prisma";
 import { PrismaDepartureRepository } from "@/infrastructure/departures/prisma-departure-repository";
 import { OperationClient } from "./operation-client";

@@ -5,17 +5,12 @@ import { createListMyTrips } from "@/application/passenger-info/list-my-trips";
 import { PrismaPassengerInfoRepository } from "@/infrastructure/passenger-info/prisma-passenger-info-repository";
 import { requireRole } from "@/lib/auth/require-role";
 
+import { formatTripDate } from "./format-trip-date";
+
 export const metadata: Metadata = { title: "Mis viajes" };
 
 interface MyTripsPageProps {
   searchParams: Promise<{ page?: string | string[] }>;
-}
-
-function formatTripDate(iso: string): string {
-  return new Date(iso).toLocaleString("es-MX", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
 }
 
 function formatTripStatus(status: "BOARDED" | "CANCELLED" | "REASSIGNED"): string {

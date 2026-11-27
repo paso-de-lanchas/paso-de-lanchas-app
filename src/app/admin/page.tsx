@@ -37,7 +37,12 @@ export default async function AdminPage() {
           },
           { name: "Gestión de flota", owner: "Pamela", requirements: "RF-088 a RF-093" },
           { name: "Gestión de choferes", owner: "Pamela", requirements: "RF-094 a RF-096" },
-          { name: "Tarifas y descuentos", owner: "Cova", requirements: "RF-097 a RF-101" },
+          {
+            name: "Tarifas y descuentos",
+            owner: "Cova",
+            requirements: "RF-097 a RF-101",
+            href: "/admin/tarifas",
+          },
           {
             name: "Horario de servicio y avisos",
             owner: "José",

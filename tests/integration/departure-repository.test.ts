@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Pruebas de integración para PrismaDepartureRepository contra la BD de pruebas.
  * Requieren `docker compose up -d` y `npm run db:test:prepare`.
  */

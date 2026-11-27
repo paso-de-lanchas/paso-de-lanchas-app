@@ -3,6 +3,7 @@ import { estimateArrival, estimateDeparture } from "@/domain/passenger-info/eta"
 
 import type {
   ActiveBoardingDepartureRow,
+  ActiveInboundDepartureRow,
   BoardingDepartureStatusCode,
   PassengerInfoRepository,
   VesselKindCode,
@@ -38,7 +39,7 @@ export interface DockStatusView {
   dockCode: string;
   dockName: string;
   boarding: BoardingVesselView[];
-  inbound: InboundVesselView | null;
+  inbound: InboundVesselView[];
 }
 
 export interface DocksStatusResult {
@@ -91,6 +92,25 @@ function toBoardingVesselView(row: ActiveBoardingDepartureRow, now: Date): Board
   };
 }
 
+function toInboundVesselView(
+  row: ActiveInboundDepartureRow,
+  crossingMinutes: number,
+  now: Date,
+): InboundVesselView {
+  const eta = estimateArrival(row.departedAt, crossingMinutes, now);
+
+  return {
+    departureId: row.id,
+    originDockName: row.originDockName,
+    vesselName: row.vesselName,
+    vesselKind: row.vesselKind,
+    vesselColor: row.vesselColor,
+    vesselPhotoUrl: row.vesselPhotoUrl,
+    estimatedArrivalLabel: eta.label,
+    estimatedArrivalIso: eta.estimatedAt ? eta.estimatedAt.toISOString() : null,
+  };
+}
+
 export function createGetDocksStatus(deps: GetDocksStatusDeps) {
   const clock = deps.clock ?? systemClock;
 
@@ -108,23 +128,14 @@ export function createGetDocksStatus(deps: GetDocksStatusDeps) {
         .filter((row): row is ActiveBoardingDepartureRow => Boolean(row))
         .map((row) => toBoardingVesselView(row, now));
 
-      const inboundRow =
-        snapshot.inboundDepartures.find((d) => d.destinationDockId === dock.id) ?? null;
-
-      let inbound: InboundVesselView | null = null;
-      if (inboundRow) {
-        const eta = estimateArrival(inboundRow.departedAt, snapshot.crossingMinutes, now);
-        inbound = {
-          departureId: inboundRow.id,
-          originDockName: inboundRow.originDockName,
-          vesselName: inboundRow.vesselName,
-          vesselKind: inboundRow.vesselKind,
-          vesselColor: inboundRow.vesselColor,
-          vesselPhotoUrl: inboundRow.vesselPhotoUrl,
-          estimatedArrivalLabel: eta.label,
-          estimatedArrivalIso: eta.estimatedAt ? eta.estimatedAt.toISOString() : null,
-        };
-      }
+      const inbound = snapshot.inboundDepartures
+        .filter((d) => d.destinationDockId === dock.id)
+        .sort((a, b) => {
+          const aTime = a.departedAt ? a.departedAt.getTime() : Number.POSITIVE_INFINITY;
+          const bTime = b.departedAt ? b.departedAt.getTime() : Number.POSITIVE_INFINITY;
+          return aTime - bTime;
+        })
+        .map((row) => toInboundVesselView(row, snapshot.crossingMinutes, now));
 
       return {
         dockId: dock.id,
