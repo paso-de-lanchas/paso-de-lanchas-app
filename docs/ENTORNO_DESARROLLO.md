@@ -166,8 +166,11 @@ Cómo crear cada una cuando toque:
    Rama de producción: `main`. En *Settings → Environment Variables* pega las variables de `.env.example` con los
    valores reales: las de **Production** usan la rama `production` de Neon y las de **Preview** la rama `staging`.
 3. **Mercado Pago** — mercadopago.com.mx/developers → *Tus integraciones → Crear aplicación* (pagos en línea, Checkout
-   Pro). Usa solo las **credenciales de prueba** y los **usuarios de prueba** que genera el panel. El webhook apunta a la
-   URL de *staging* de Vercel.
+   Pro). En *Credenciales de prueba*, copia el **Access Token de prueba** a `MP_ACCESS_TOKEN` en `.env.local`. En
+   *Webhooks → Configurar notificaciones*, habilita el evento `payment` y copia la clave de firma a
+   `MP_WEBHOOK_SECRET`. Usa solo credenciales y usuarios de prueba; nunca pegues llaves reales en archivos del repo.
+   En la nube, configura el webhook con la URL de *staging* de Vercel. Para probar localmente, expón el servidor con un
+   túnel HTTPS temporal y configura la URL resultante como `APP_URL`; no subas esa URL ni las llaves.
 4. **Resend** — resend.com → *Sign up with GitHub* → crea una API key con permiso solo de envío. Sin dominio propio
    solo puede mandar correos a tu propia dirección; para producción hay que verificar un dominio.
 5. **Sentry** — sentry.io → plan Developer → proyecto *Next.js*. El DSN va en Vercel.

@@ -282,3 +282,12 @@ Este proyecto es **ingeniería de software**: todo código debe:
 - Lo que hoy registra la bitácora (RF-122): inicios y cierres de sesión, rechazos, registro, contraseñas, cuentas del
   personal, computadoras, recargas, reembolsos, ajustes, tarifas, embarcaciones, fila y salidas. Con el #67 ya se
   registran el cobro del cruce y el QR rechazado; faltan las de choferes (#66) y cancelaciones (#59), que llegan con sus PRs.
+
+### 2026-11-27 — Recarga en línea con Mercado Pago (#38, implementación lista)
+- Se fijó `mercadopago` 3.6.2 y se documentaron las credenciales de prueba (`MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`).
+- El pasajero inicia Checkout Pro con un pago `PENDING` e idempotencia; el webhook valida `x-signature`, consulta el
+  pago por ID y, dentro de una transacción, confirma el estado, acredita `TOPUP_ONLINE` y registra
+  `TOPUP_ONLINE_CONFIRMED`. Las notificaciones inválidas o inconsistentes se registran como `WEBHOOK_REJECTED`.
+- `/pasajero/saldo/recargar` valida el rol, consulta límites configurados, muestra el estado de ese pasajero y actualiza
+  automáticamente los pagos pendientes. La prueba de integración verifica que notificaciones aprobadas concurrentes
+  acreditan una sola vez. Implementación en `feature/38-recarga-en-linea`, pendiente PR y revisión.

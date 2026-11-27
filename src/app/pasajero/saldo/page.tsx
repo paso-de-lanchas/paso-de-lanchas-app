@@ -66,6 +66,13 @@ async function PassengerWalletContent({ searchParams }: PassengerWalletPageProps
         )}
       </section>
 
+      <Link
+        href="/pasajero/saldo/recargar"
+        className="bg-brand hover:bg-brand-dark mb-5 rounded-xl px-4 py-3 text-center text-sm font-semibold text-white"
+      >
+        Recargar en línea
+      </Link>
+
       <section className="space-y-3">
         <h2 className="font-heading text-ink text-lg font-bold">Movimientos</h2>
         {history.items.length === 0 ? (

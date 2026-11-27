@@ -66,6 +66,7 @@ export class PrismaBoardingStore implements BoardingStore<Tx> {
     try {
       return await this.db.$transaction(work, {
         isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+        maxWait: 10_000,
         timeout: 10_000,
       });
     } catch (error) {
