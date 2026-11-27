@@ -180,3 +180,33 @@ export async function getCurrentSessionDeviceId(userId: string): Promise<string 
   });
   return session?.deviceId ?? null;
 }
+
+/**
+ * Puesto de trabajo del administrador en esta petición: su muelle (de la base, nunca del
+ * formulario) y la computadora de la sesión, solo si sigue aprobada y es de ese muelle.
+ */
+export async function getCurrentStaffPost(
+  userId: string,
+): Promise<{ dockId: string | null; deviceId: string | null }> {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  const [user, session] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { dockId: true } }),
+    token
+      ? prisma.session.findFirst({
+          where: {
+            sessionToken: cryptoTokenService.hash(token),
+            userId,
+            expiresAt: { gt: systemClock.now() },
+          },
+          select: { device: { select: { id: true, status: true, dockId: true } } },
+        })
+      : null,
+  ]);
+  const dockId = user?.dockId ?? null;
+  const device = session?.device;
+  const deviceId =
+    device && device.status === "APPROVED" && dockId !== null && device.dockId === dockId
+      ? device.id
+      : null;
+  return { dockId, deviceId };
+}
