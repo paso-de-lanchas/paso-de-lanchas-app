@@ -3,19 +3,27 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { createPrismaBoardingQueries } from "@/infrastructure/boarding/prisma-boarding-queries";
+import { createPrismaTicketOfficeQueries } from "@/infrastructure/boarding/prisma-ticket-office-queries";
 import { getCurrentStaffPost } from "@/lib/auth/auth";
 import { requireRole } from "@/lib/auth/require-role";
 
+import { CancellableBoardings } from "./cancellable-boardings";
 import { ScanPanel } from "./scan-panel";
+import { TicketSalePanel } from "./ticket-sale-panel";
 
-export const metadata: Metadata = { title: "Taquilla · Escanear QR" };
+export const metadata: Metadata = { title: "Taquilla · Venta y abordaje" };
 
 async function TaquillaContent() {
   const admin = await requireRole("ADMIN");
   const post = await getCurrentStaffPost(admin.id);
-  const boarding = post.dockId
-    ? await createPrismaBoardingQueries().findDockBoarding(post.dockId)
-    : null;
+  const ticketOfficeQueries = createPrismaTicketOfficeQueries();
+  const [boarding, ticketDeparture, cancellableBoardings] = post.dockId
+    ? await Promise.all([
+        createPrismaBoardingQueries().findDockBoarding(post.dockId),
+        ticketOfficeQueries.findTicketOfficeDeparture(post.dockId, new Date()),
+        ticketOfficeQueries.listCancellableBoardings(post.dockId),
+      ])
+    : [null, null, []];
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 py-6">
@@ -23,10 +31,9 @@ async function TaquillaContent() {
         <Link href="/admin" className="text-brand text-xs font-semibold hover:underline">
           ← Volver a Administración
         </Link>
-        <h1 className="font-heading text-ink mt-1 text-2xl font-bold">Taquilla · Escanear QR</h1>
+        <h1 className="font-heading text-ink mt-1 text-2xl font-bold">Taquilla</h1>
         <p className="text-ink-muted text-xs">
-          Escanea el QR del pasajero con la cámara o con el lector USB: se cobra del saldo y se
-          asigna su lugar en un solo paso.
+          Escanea un QR, vende boletos en efectivo o corrige un abordaje antes de iniciar el viaje.
         </p>
       </header>
 
@@ -73,6 +80,8 @@ async function TaquillaContent() {
           </section>
 
           <ScanPanel isFerry={boarding?.vesselKind === "FERRY"} disabled={!boarding} />
+          <TicketSalePanel departure={ticketDeparture} />
+          <CancellableBoardings items={cancellableBoardings} />
         </>
       )}
     </main>

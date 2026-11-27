@@ -31,7 +31,9 @@ export type BoardingErrorCode =
   | "VEHICLE_NOT_FOUND"
   | "VEHICLE_CHOICE_REQUIRED"
   | "VEHICLE_SPACE_FULL"
-  | "INSUFFICIENT_BALANCE";
+  | "INSUFFICIENT_BALANCE"
+  | "BOARDING_NOT_FOUND"
+  | "BOARDING_NOT_CANCELLABLE";
 
 export interface BoardingDepartureState {
   status: string;

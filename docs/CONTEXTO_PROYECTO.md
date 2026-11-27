@@ -271,6 +271,15 @@ Este proyecto es **ingeniería de software**: todo código debe:
 - Integrado con la fila (#43): bloquea primero el muelle y luego la salida (el mismo orden que la fila) y pasa la
   siguiente con `pickNextInQueue` / `reorderQueue`. Pendiente: aplicar el horario de servicio (#47) al escanear.
 
+### 2026-11-27 — Venta en taquilla y cancelación de abordajes (#45)
+- `/admin/taquilla` conserva el escaneo QR y añade la venta de varios boletos en efectivo, hasta el máximo
+  `max_tickets_per_sale`. Cada venta agrupa sus abordajes, tarifas vigentes, lugares consecutivos y códigos de boleto.
+- Venta y escaneo bloquean el mismo muelle y salida antes de validar cupo; el registro de venta, boletos, bitácora y
+  ocupación se confirma o revierte como una sola transacción.
+- La cancelación requiere motivo y solo aplica antes de iniciar/finalizar el viaje: marca `CANCELLED`, libera el lugar
+  y, según el pago original, acredita `REFUND` al monedero o registra el monto devuelto en efectivo con referencia al
+  turno de caja en la bitácora inmutable. El cambio y sus registros son transaccionales.
+
 ### 2026-11-27 — Consulta de la bitácora (#69)
 - `/superadmin/bitacora` (solo `SUPERADMIN`): tabla de 50 registros por página, la más reciente primero, con fecha en
   hora de México, usuario, acción (con nombre en español), sobre qué, computadora y detalle.

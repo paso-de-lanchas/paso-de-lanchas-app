@@ -65,6 +65,10 @@ repositorio:
   la salida que aborda en el muelle del admin (`SELECT … FOR UPDATE`), revisa cupo, calcula la tarifa con la Strategy
   de #15, cobra del saldo, crea la venta y el abordaje con lugar consecutivo, credencial y paso de tiempo; si la
   salida se llena la cierra y pasa la siguiente de la fila. El pasajero ve su lugar en `/pasajero` (cada 5 s).
+- **Taquilla: venta y cancelación (#45):** venta de 1 a `max_tickets_per_sale` boletos en efectivo, con categorías
+  vigentes, lugares consecutivos y código único por boleto; usa el mismo bloqueo de muelle/salida y control de cupo
+  del QR. La cancelación pide motivo, marca el abordaje `CANCELLED`, libera el cupo y reembolsa a saldo o registra
+  la salida de efectivo asociada al turno en la bitácora; no permite cancelar viajes iniciados o finalizados.
 - **En revisión (PRs abiertos):** tarifa vigente #15 (PR #50), fila y salidas #43 (PR #58), cancelar salida y regreso
   #46 (PR #59), horario e incidentes #47 (PR #60), choferes #13 (PR #66), componentes #19 (PR #54).
 - **Permisos en GitHub (D26):** equipo `desarrollo` con escritura; en `develop` todo entra por PR con la CI en verde y
@@ -184,6 +188,7 @@ npm run format             Prettier
 | 2026-11-27 | Pamela | Fila y salidas (#43, PR #58): auditoría obligatoria en casos de uso, bloqueo de muelle FOR UPDATE en transacciones, verificación global de embarcacion activa con indice unico parcial, validación Zod y prueba E2E de flujo de fila/abordaje |
 | 2026-11-27 | Omar (con Claude) | Escaneo del QR (#44): `/admin/taquilla` con cámara (html5-qrcode 2.3.8) o lector USB; `boardWithQr` en una transacción (bloqueo de la salida, cupo, tarifa con la Strategy de #15, cobro `FARE_CHARGE`, venta `QR_BALANCE`, abordaje con lugar, credencial y paso de tiempo, bitácora); al llenarse cierra y pasa la siguiente; vehículos en el transbordador; aviso al pasajero cada 5 s (`GET /api/pasajero/abordaje`); la tarifa usa una sola regla de descuento (`isDiscountActive`); pruebas de concurrencia (20 escaneos / 10 lugares) y de navegador |
 | 2026-11-27 | Omar (con Claude) | Bitácora (#69): `/superadmin/bitacora` de solo lectura con filtros por usuario, acción y rango de fechas en hora de México (Zod; un filtro inválido se ignora y se avisa), 50 por página, detalle con contraseñas, tokens y secretos ocultos; prueba de integración de que la base no deja modificar ni borrar (RF-123) |
+| 2026-11-27 | Cova | Taquilla (#45): venta agrupada de boletos en efectivo con tarifa vigente, caja abierta, lugares consecutivos y códigos únicos; cancelación transaccional con motivo, liberación del cupo, reembolso a saldo o registro de devolución contra el turno de caja y bitácora |
 
 ## Registro de errores y soluciones
 
@@ -202,6 +207,7 @@ npm run format             Prettier
 | 2026-11-25 | Un QR queda inservible tras iniciar sesión en otro celular | El `POST /api/qr/credential` revoca la credencial anterior y el primer celular conservaba la suya en IndexedDB sin volver a preguntar | `GET /api/qr/credential?id=…`: con internet se consulta y, solo si responde `active: false`, se borra `qr:<userId>` y se pide una nueva |
 | 2026-11-25 | `/pasajero/qr` muestra "No pudimos activar tu QR" (500 en el servidor) | `QR_SIGNING_SECRET` vacía en `.env.local`: `.env.example` la trae en blanco | Generarla con el comando de `.env.example` y reiniciar `npm run dev` (Next solo lee las variables al arrancar) |
 | 2026-11-25 | `npm run check` falla con `The table public.users does not exist` en las pruebas de integración | La base de pruebas estaba vacía o sin las migraciones nuevas que entraron al fusionar `develop` | `docker compose up -d`, `npm run db:test:prepare` y volver a correr `npm run check` |
+| 2026-11-27 | Prueba de 20 escaneos concurrentes falla con Prisma `P2028: Unable to start a transaction in the given time` | El `maxWait` predeterminado de 2 s no alcanzaba mientras las transacciones esperaban el bloqueo del muelle | Configurar `maxWait: 10_000` en `PrismaBoardingStore.run` |
 | 2026-11-25 | `zsh: no matches found: --include=*.ts` al usar `grep` | zsh expande `*.ts` antes de pasarlo a `grep` | Poner el patrón entre comillas: `--include="*.ts"` |
 | 2026-11-27 | El inicio del pasajero mostraba dos veces el tablero de muelles | Al resolver un conflicto quedó repetido `<DocksLiveBoard>` en `src/app/pasajero/page.tsx` | Se quitó el repetido (PR del #44); al resolver conflictos, revisar la pantalla y no solo que compile |
 | 2026-11-27 | Playwright: `getByRole("alert")` encuentra dos elementos | Next.js agrega su propio aviso de navegación con `role="alert"` | Darle nombre a la región (`aria-label`) y buscarla con `getByRole("alert", { name })` |

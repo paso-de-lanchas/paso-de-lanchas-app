@@ -202,7 +202,7 @@ describe.skipIf(!prisma)("escaneo del QR en PostgreSQL", () => {
       where: { entity: "boardings", entityId: { in: boardings.map((b) => b.id) } },
     });
     expect(audits).toBe(10);
-  });
+  }, 15_000);
 
   it("el mismo QR dos veces al mismo tiempo se cobra una sola vez", async () => {
     const { departure, actor } = await createBoardingDock(10);

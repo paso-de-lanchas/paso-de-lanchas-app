@@ -65,6 +65,9 @@ describe("detalle de la bitácora", () => {
 
   it("traduce las acciones conocidas y deja igual las nuevas", () => {
     expect(auditActionLabel("WALLET_TOPUP_CASH")).toBe("Recarga en efectivo");
+    expect(auditActionLabel("TICKET_OFFICE_CASH_REFUND")).toBe(
+      "Devolución en efectivo de taquilla",
+    );
     expect(auditActionLabel("ALGO_NUEVO")).toBe("ALGO_NUEVO");
   });
 });

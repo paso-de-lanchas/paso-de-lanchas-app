@@ -1,16 +1,23 @@
 import type {
+  BoardingCancellationStore,
+  CreatedTicketOfficeSale,
   BoardingPassenger,
   BoardingStore,
   BoardingVehicle,
   CreateBoardingData,
   CreatedBoarding,
+  LockedBoardingCancellation,
   LockedDeparture,
   OccupySeatResult,
+  TicketOfficeSaleAudit,
+  TicketOfficeStore,
+  TicketOfficeTicketData,
 } from "@/application/boarding/ports";
 import type { ChangeAudit } from "@/application/shared/ports";
 import { BoardingError } from "@/domain/boarding/boarding";
+import { DomainError } from "@/domain/shared/domain-error";
 import { pickNextInQueue, reorderQueue } from "@/domain/departures/queue";
-import type { VesselKind } from "@/domain/fares/fare";
+import type { FareCategory, VesselKind } from "@/domain/fares/fare";
 import type { FareOption } from "@/domain/fares/fare-strategy";
 import { Money } from "@/domain/shared/money";
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
@@ -30,6 +37,23 @@ interface LockedRow {
   destination_dock_name: string;
 }
 
+interface LockedCancellationRow {
+  boarding_id: string;
+  departure_id: string;
+  departure_status: string;
+  occupied_seats: number;
+  passenger_capacity: number;
+  boarding_status: string;
+  passenger_id: string | null;
+  sale_id: string;
+  payment_method: "BALANCE" | "CASH";
+  cash_shift_id: string | null;
+  seat_number: number;
+  vehicle_type_id: number | null;
+  amount_charged: string;
+  fare_category: FareCategory;
+}
+
 /**
  * Convierte las violaciones de las reglas de la base en errores entendibles. Son la última
  * defensa: el caso de uso ya revisa lo mismo, pero dos escaneos simultáneos del mismo QR en
@@ -39,6 +63,12 @@ export function toBoardingError(error: unknown): unknown {
   if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return error;
   const detail = `${JSON.stringify(error.meta ?? {})} ${error.message}`;
   if (error.code === "P2002") {
+    if (detail.includes("ticket_code") || detail.includes("ticketCode")) {
+      return new DomainError(
+        "TICKET_CODE_COLLISION",
+        "No se pudo asignar un código único al boleto. Intenta registrar la venta otra vez.",
+      );
+    }
     if (detail.includes("qr_credential_id") || detail.includes("qrCredentialId")) {
       return new BoardingError(
         "QR_ALREADY_USED",
@@ -55,7 +85,9 @@ export function toBoardingError(error: unknown): unknown {
   return error;
 }
 
-export class PrismaBoardingStore implements BoardingStore<Tx> {
+export class PrismaBoardingStore
+  implements BoardingStore<Tx>, TicketOfficeStore<Tx>, BoardingCancellationStore<Tx>
+{
   private readonly wallets: PrismaWalletRepository;
 
   constructor(private readonly db: PrismaClient = prisma) {
@@ -66,6 +98,7 @@ export class PrismaBoardingStore implements BoardingStore<Tx> {
     try {
       return await this.db.$transaction(work, {
         isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+        maxWait: 10_000,
         timeout: 10_000,
       });
     } catch (error) {
@@ -104,6 +137,254 @@ export class PrismaBoardingStore implements BoardingStore<Tx> {
       occupiedSeats: Number(row.occupied_seats),
       highestSeat: seats._max.seatNumber ?? null,
     };
+  }
+
+  async getMaxTicketsPerSale(tx: Tx): Promise<number> {
+    const setting = await tx.systemSetting.findUnique({
+      where: { key: "max_tickets_per_sale" },
+      select: { value: true },
+    });
+    if (typeof setting?.value !== "number" || !Number.isSafeInteger(setting.value)) {
+      throw new DomainError(
+        "INVALID_TICKET_SALE_LIMIT",
+        "No se encontró una configuración válida del máximo de boletos por venta.",
+      );
+    }
+    return setting.value;
+  }
+
+  ensureOpenCashShift(
+    tx: Tx,
+    input: { adminId: string; deviceId: string; at: Date },
+  ): Promise<string> {
+    return this.wallets.ensureOpenCashShift(tx, input);
+  }
+
+  async createTicketOfficeSale(
+    tx: Tx,
+    input: {
+      departureId: string;
+      registeredById: string;
+      deviceId: string;
+      cashShiftId: string;
+      tickets: TicketOfficeTicketData[];
+      total: Money;
+      at: Date;
+    },
+    audit: TicketOfficeSaleAudit,
+  ): Promise<CreatedTicketOfficeSale> {
+    const sale = await tx.sale.create({
+      data: {
+        channel: "TICKET_OFFICE",
+        registeredById: input.registeredById,
+        deviceId: input.deviceId,
+        cashShiftId: input.cashShiftId,
+        paymentMethod: "CASH",
+        ticketCount: input.tickets.length,
+        totalAmount: input.total.toDecimalString(),
+        createdAt: input.at,
+      },
+      select: { id: true },
+    });
+
+    const tickets: CreatedTicketOfficeSale["tickets"] = [];
+    for (const ticket of input.tickets) {
+      const boarding = await tx.boarding.create({
+        data: {
+          departureId: input.departureId,
+          saleId: sale.id,
+          seatNumber: ticket.seatNumber,
+          fareId: ticket.fareId,
+          fareCategory: ticket.category,
+          amountCharged: ticket.amount.toDecimalString(),
+          ticketCode: ticket.ticketCode,
+          createdAt: input.at,
+        },
+        select: { id: true },
+      });
+      tickets.push({
+        boardingId: boarding.id,
+        seatNumber: ticket.seatNumber,
+        ticketCode: ticket.ticketCode,
+        amount: ticket.amount,
+      });
+    }
+
+    await tx.auditLog.create({
+      data: auditLogData({
+        userId: audit.userId,
+        deviceId: audit.deviceId,
+        action: audit.action,
+        entity: "sales",
+        entityId: sale.id,
+        details: audit.details,
+      }),
+    });
+
+    return { saleId: sale.id, tickets };
+  }
+
+  async lockBoardingForCancellation(
+    tx: Tx,
+    dockId: string,
+    boardingId: string,
+  ): Promise<LockedBoardingCancellation | null> {
+    await tx.$executeRaw`SELECT id FROM docks WHERE id = ${dockId}::uuid FOR UPDATE`;
+    const rows = await tx.$queryRaw<LockedCancellationRow[]>`
+      SELECT b.id AS boarding_id, d.id AS departure_id, d.status::text AS departure_status,
+             d.occupied_seats, d.passenger_capacity, b.status::text AS boarding_status,
+             b.passenger_id, s.id AS sale_id, s.payment_method::text AS payment_method,
+             s.cash_shift_id, b.seat_number, f.vehicle_type_id,
+             b.amount_charged::text AS amount_charged, b.fare_category::text AS fare_category
+      FROM boardings b
+      JOIN departures d ON d.id = b.departure_id
+      JOIN sales s ON s.id = b.sale_id
+      JOIN fares f ON f.id = b.fare_id
+      WHERE b.id = ${boardingId}::uuid AND d.origin_dock_id = ${dockId}::uuid
+      FOR UPDATE OF d, b, s`;
+    const row = rows[0];
+    if (!row) return null;
+
+    return {
+      boardingId: row.boarding_id,
+      departureId: row.departure_id,
+      departureStatus: row.departure_status,
+      occupiedSeats: Number(row.occupied_seats),
+      passengerCapacity: Number(row.passenger_capacity),
+      boardingStatus: row.boarding_status,
+      passengerId: row.passenger_id,
+      saleId: row.sale_id,
+      paymentMethod: row.payment_method,
+      cashShiftId: row.cash_shift_id,
+      seatNumber: Number(row.seat_number),
+      vehicleTypeId: row.vehicle_type_id,
+      amount: Money.fromPesos(row.amount_charged),
+      fareCategory: row.fare_category,
+    };
+  }
+
+  async cancelBoarding(
+    tx: Tx,
+    input: {
+      boarding: LockedBoardingCancellation;
+      adminId: string;
+      deviceId: string;
+      reason: string;
+      at: Date;
+    },
+  ): Promise<void> {
+    const { boarding } = input;
+    const changed = await tx.boarding.updateMany({
+      where: { id: boarding.boardingId, status: "BOARDED" },
+      data: { status: "CANCELLED", cancelReason: input.reason },
+    });
+    if (changed.count !== 1) {
+      throw new BoardingError(
+        "BOARDING_NOT_CANCELLABLE",
+        "Este abordaje ya fue cancelado o reasignado.",
+      );
+    }
+
+    const freedSeat = await tx.departure.updateMany({
+      where: { id: boarding.departureId, occupiedSeats: { gt: 0 } },
+      data: { occupiedSeats: { decrement: 1 }, version: { increment: 1 } },
+    });
+    if (freedSeat.count !== 1) {
+      throw new DomainError(
+        "DEPARTURE_OCCUPANCY_INCONSISTENT",
+        "No se pudo liberar el lugar porque la ocupación de la salida no coincide.",
+      );
+    }
+
+    if (boarding.vehicleTypeId !== null) {
+      const freedVehicleSpace = await tx.departureVehicleCapacity.updateMany({
+        where: {
+          departureId: boarding.departureId,
+          vehicleTypeId: boarding.vehicleTypeId,
+          occupied: { gt: 0 },
+        },
+        data: { occupied: { decrement: 1 } },
+      });
+      if (freedVehicleSpace.count !== 1) {
+        throw new DomainError(
+          "VEHICLE_OCCUPANCY_INCONSISTENT",
+          "No se pudo liberar el espacio del vehículo.",
+        );
+      }
+    }
+
+    if (boarding.paymentMethod === "BALANCE") {
+      if (!boarding.passengerId) {
+        throw new DomainError(
+          "REFUND_WALLET_MISSING",
+          "No se encontró el monedero para reembolsar este abordaje.",
+        );
+      }
+      await this.wallets.credit(
+        tx,
+        {
+          userId: boarding.passengerId,
+          amount: boarding.amount,
+          type: "REFUND",
+          performedById: input.adminId,
+          at: input.at,
+          reason: input.reason,
+          saleId: boarding.saleId,
+        },
+        {
+          userId: input.adminId,
+          action: "WALLET_BOARDING_REFUND",
+          details: {
+            boardingId: boarding.boardingId,
+            departureId: boarding.departureId,
+            amountCents: boarding.amount.cents,
+            reason: input.reason,
+          },
+        },
+      );
+    } else {
+      if (!boarding.cashShiftId) {
+        throw new DomainError(
+          "CASH_SHIFT_REQUIRED",
+          "No se encontró el turno de caja asociado para registrar la devolución.",
+        );
+      }
+      await tx.auditLog.create({
+        data: auditLogData({
+          userId: input.adminId,
+          deviceId: input.deviceId,
+          action: "TICKET_OFFICE_CASH_REFUND",
+          entity: "cash_shifts",
+          entityId: boarding.cashShiftId,
+          details: {
+            boardingId: boarding.boardingId,
+            saleId: boarding.saleId,
+            amountCents: boarding.amount.cents,
+            seatNumber: boarding.seatNumber,
+            reason: input.reason,
+          },
+        }),
+      });
+    }
+
+    await tx.auditLog.create({
+      data: auditLogData({
+        userId: input.adminId,
+        deviceId: input.deviceId,
+        action: "BOARDING_CANCELLED",
+        entity: "boardings",
+        entityId: boarding.boardingId,
+        details: {
+          departureId: boarding.departureId,
+          saleId: boarding.saleId,
+          seatNumber: boarding.seatNumber,
+          fareCategory: boarding.fareCategory,
+          paymentMethod: boarding.paymentMethod,
+          amountCents: boarding.amount.cents,
+          reason: input.reason,
+        },
+      }),
+    });
   }
 
   async findPassenger(tx: Tx, userId: string): Promise<BoardingPassenger | null> {

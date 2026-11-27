@@ -75,6 +75,87 @@ export interface OccupySeatResult {
   nextDepartureId: string | null;
 }
 
+export interface TicketOfficeTicketData {
+  category: FareCategory;
+  vehicleTypeId: number | null;
+  seatNumber: number;
+  fareId: string;
+  amount: Money;
+  ticketCode: string;
+}
+
+export interface CreatedTicketOfficeSale {
+  saleId: string;
+  tickets: Array<{ boardingId: string; seatNumber: number; ticketCode: string; amount: Money }>;
+}
+
+export interface LockedBoardingCancellation {
+  boardingId: string;
+  departureId: string;
+  departureStatus: string;
+  occupiedSeats: number;
+  passengerCapacity: number;
+  boardingStatus: string;
+  passengerId: string | null;
+  saleId: string;
+  paymentMethod: "BALANCE" | "CASH";
+  cashShiftId: string | null;
+  seatNumber: number;
+  vehicleTypeId: number | null;
+  amount: Money;
+  fareCategory: FareCategory;
+}
+
+export interface TicketOfficeSaleAudit {
+  userId: string;
+  deviceId: string;
+  action: string;
+  details: Record<string, unknown>;
+}
+
+export type TicketOfficeStore<Tx = unknown> = Pick<
+  BoardingStore<Tx>,
+  "run" | "lockBoardingDeparture" | "listFares" | "getVehicleSpace" | "occupySeat"
+> & {
+  getMaxTicketsPerSale(tx: Tx): Promise<number>;
+  ensureOpenCashShift(
+    tx: Tx,
+    input: { adminId: string; deviceId: string; at: Date },
+  ): Promise<string>;
+  createTicketOfficeSale(
+    tx: Tx,
+    input: {
+      departureId: string;
+      registeredById: string;
+      deviceId: string;
+      cashShiftId: string;
+      tickets: TicketOfficeTicketData[];
+      total: Money;
+      at: Date;
+    },
+    audit: TicketOfficeSaleAudit,
+  ): Promise<CreatedTicketOfficeSale>;
+};
+
+export interface BoardingCancellationStore<Tx = unknown> {
+  run<T>(work: (tx: Tx) => Promise<T>): Promise<T>;
+  lockBoardingForCancellation(
+    tx: Tx,
+    dockId: string,
+    boardingId: string,
+  ): Promise<LockedBoardingCancellation | null>;
+  cancelBoarding(
+    tx: Tx,
+    input: {
+      boarding: LockedBoardingCancellation;
+      adminId: string;
+      deviceId: string;
+      reason: string;
+      at: Date;
+    },
+  ): Promise<void>;
+}
+
 /**
  * Todo lo que el escaneo necesita de la base, DENTRO de una sola transacción (Unit of Work).
  * `Tx` es el contexto de la transacción (en Prisma, el `TransactionClient`).
