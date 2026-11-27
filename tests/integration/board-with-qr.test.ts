@@ -284,6 +284,25 @@ describe.skipIf(!prisma)("escaneo del QR en PostgreSQL", () => {
         passengerCapacity: 5,
       },
     });
+    const thirdVessel = await db.vessel.create({
+      data: {
+        code: uniq("N").slice(0, 10),
+        name: "Lancha tercera",
+        kind: "BOAT",
+        registration: uniq("MAT"),
+        passengerCapacity: 5,
+      },
+    });
+    const third = await db.departure.create({
+      data: {
+        vesselId: thirdVessel.id,
+        originDockId: dock.id,
+        destinationDockId,
+        status: "QUEUED",
+        queuePosition: 2,
+        passengerCapacity: 5,
+      },
+    });
     const first = await createPassenger("100.00");
     const second = await createPassenger("100.00");
 
@@ -295,6 +314,9 @@ describe.skipIf(!prisma)("escaneo del QR en PostgreSQL", () => {
     expect(closed.status).toBe("BOARDING_CLOSED");
     expect(promoted.status).toBe("BOARDING");
     expect(promoted.queuePosition).toBeNull();
+    // La fila se renumera igual que en Operación del muelle (#43): la tercera pasa a ser la 1.
+    const stillQueued = await db.departure.findUniqueOrThrow({ where: { id: third.id } });
+    expect(stillQueued).toMatchObject({ status: "QUEUED", queuePosition: 1 });
 
     // El siguiente pasajero ya aborda la nueva embarcación, en su lugar 1.
     const nextConfirmation = await board()({ qr: second.qr }, actor);

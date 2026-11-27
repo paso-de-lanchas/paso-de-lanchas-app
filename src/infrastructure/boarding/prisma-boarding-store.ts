@@ -9,6 +9,7 @@ import type {
 } from "@/application/boarding/ports";
 import type { ChangeAudit } from "@/application/shared/ports";
 import { BoardingError } from "@/domain/boarding/boarding";
+import { pickNextInQueue, reorderQueue } from "@/domain/departures/queue";
 import type { VesselKind } from "@/domain/fares/fare";
 import type { FareOption } from "@/domain/fares/fare-strategy";
 import { Money } from "@/domain/shared/money";
@@ -73,8 +74,10 @@ export class PrismaBoardingStore implements BoardingStore<Tx> {
   }
 
   async lockBoardingDeparture(tx: Tx, dockId: string): Promise<LockedDeparture | null> {
-    // Bloquea SOLO la fila de la salida: dos escaneos del mismo muelle quedan en fila
-    // y el segundo ve el cupo que dejó el primero (cero sobreventa).
+    // Primero el muelle y luego la salida: el mismo orden que usa la fila (#43) al formar o
+    // cerrar abordaje, para que escanear y mover la fila a la vez nunca se bloqueen entre sí.
+    // Dos escaneos del mismo muelle quedan en fila y el segundo ve el cupo que dejó el primero.
+    await tx.$executeRaw`SELECT id FROM docks WHERE id = ${dockId}::uuid FOR UPDATE`;
     const rows = await tx.$queryRaw<LockedRow[]>`
       SELECT d.id, d.status::text AS status, d.passenger_capacity, d.occupied_seats,
              v.kind::text AS vessel_kind, v.name AS vessel_name, dd.name AS destination_dock_name
@@ -286,12 +289,14 @@ export class PrismaBoardingStore implements BoardingStore<Tx> {
 
     if (!input.closeWhenFull) return { departureClosed: false, nextDepartureId: null };
 
-    // Se llenó: pasa a abordar la siguiente de la fila del mismo muelle (si hay).
-    const next = await tx.departure.findFirst({
+    // Se llenó: pasa a abordar la siguiente de la fila del mismo muelle, con las MISMAS reglas
+    // de la fila (#43): la de menor posición, y las demás se renumeran 1, 2, 3…
+    const queued = await tx.departure.findMany({
       where: { originDockId: departure.originDockId, status: "QUEUED" },
       orderBy: [{ queuePosition: "asc" }, { createdAt: "asc" }],
       select: { id: true, queuePosition: true },
     });
+    const next = pickNextInQueue(queued);
     if (!next) return { departureClosed: true, nextDepartureId: null };
 
     await tx.departure.update({
@@ -303,14 +308,10 @@ export class PrismaBoardingStore implements BoardingStore<Tx> {
         version: { increment: 1 },
       },
     });
-    if (next.queuePosition !== null) {
-      await tx.departure.updateMany({
-        where: {
-          originDockId: departure.originDockId,
-          status: "QUEUED",
-          queuePosition: { gt: next.queuePosition },
-        },
-        data: { queuePosition: { decrement: 1 }, version: { increment: 1 } },
+    for (const item of reorderQueue(queued.filter((d) => d.id !== next.id))) {
+      await tx.departure.update({
+        where: { id: item.id },
+        data: { queuePosition: item.queuePosition, version: { increment: 1 } },
       });
     }
     return { departureClosed: true, nextDepartureId: next.id };

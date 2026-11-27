@@ -239,6 +239,10 @@ Este proyecto es **ingeniería de software**: todo código debe:
 - `npm run dev:aprobar-computadoras` queda solo para desarrollo; acepta un correo para aprobar solo las de esa cuenta
   (lo usan las pruebas de navegador, que corren en paralelo).
 
+### 2026-11-26 — Fila y salidas (#43) y choferes (#13)
+- Fila y salidas (#43): se incorporaron la validación de muelle en `enqueueDeparture`, el bloqueo de muelle con `FOR UPDATE` dentro de transacciones, el registro en bitácora de auditoría (`DEPARTURE_ENQUEUED`, `DEPARTURE_BOARDING_STARTED` y `DEPARTURE_BOARDING_CLOSED`) y pruebas de integración con chofer real.
+- Choferes (#13): se implementaron los casos de uso (`list-drivers`, `update-driver`, `assign-driver-to-vessel`, `unassign-driver`), el repositorio Prisma (`PrismaDriverRepository`) y las vistas de administración en `/admin/choferes` y `/admin/choferes/[id]` protegidas con `requireRole("ADMIN", "SUPERADMIN")`.
+
 ### 2026-11-22 — Tarifas con vigencia (#14)
 - Se agregaron reglas de dominio para categorías y tipos de vehículo, y casos de uso para establecer tarifas, consultar las vigentes y recuperar su historial.
 - El repositorio Prisma cierra la tarifa anterior y crea la nueva dentro de la misma transacción; la restricción PostgreSQL `fares_no_overlap` sigue siendo la última defensa contra traslapes.
