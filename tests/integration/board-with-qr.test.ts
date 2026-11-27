@@ -385,4 +385,3 @@ describe.skipIf(!prisma)("escaneo del QR en PostgreSQL", () => {
     expect(await balanceOf(other.user.id)).toBe(10_000);
   });
 });
-
