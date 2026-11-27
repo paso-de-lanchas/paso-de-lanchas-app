@@ -261,6 +261,16 @@ async function main() {
       },
     });
 
+  // PENDIENTE: confirmar en campo con operación de muelles
+  await prisma.systemSetting.upsert({
+    where: { key: "max_boarding_minutes" },
+    update: {},
+    create: {
+      key: "max_boarding_minutes",
+      value: { minutes: 20 },
+    },
+  });
+
   console.log("Datos de ejemplo cargados.");
 }
 
