@@ -74,6 +74,8 @@ test("sin sesión de admin no se puede abrir la taquilla", async ({ page }) => {
 });
 
 test("un pasajero no puede consultar la taquilla ni el abordaje de otro", async ({ page }) => {
+  // El primer inicio de sesión compila la ruta y Argon2 es lento a propósito: más margen.
+  test.slow();
   await page.goto("/login");
   await login(page, "pasajero@pasolanchas.test");
   await expect(page).toHaveURL(/\/pasajero/);

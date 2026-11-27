@@ -30,6 +30,8 @@ test("el superadministrador ve su inicio de sesión en la bitácora y la filtra"
 });
 
 test("un pasajero no puede abrir la bitácora", async ({ page }) => {
+  // El primer inicio de sesión compila la ruta y Argon2 es lento a propósito: más margen.
+  test.slow();
   await page.goto("/login");
   await login(page, "pasajero@pasolanchas.test");
   await expect(page).toHaveURL(/\/pasajero/);
