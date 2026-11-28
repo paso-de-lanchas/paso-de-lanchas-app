@@ -24,6 +24,18 @@ export default async function AdminPage() {
           <span className="text-sm font-bold">Abrir →</span>
         </Link>
         <Link
+          href="/admin/mapa"
+          className="border-brand/20 text-brand hover:border-brand mb-3 flex items-center justify-between rounded-2xl border bg-white px-5 py-4 shadow-xs transition"
+        >
+          <div>
+            <p className="font-heading text-brand text-base font-bold">Mapa en vivo</p>
+            <p className="text-ink-muted text-xs">
+              Embarcaciones en tránsito con su ocupación y llegada estimada (RF-077 a RF-081)
+            </p>
+          </div>
+          <span className="text-brand text-sm font-bold">Abrir →</span>
+        </Link>
+        <Link
           href="/admin/recargas"
           className="border-brand/20 text-brand hover:border-brand mb-3 flex items-center justify-between rounded-2xl border bg-white px-5 py-4 shadow-xs transition"
         >

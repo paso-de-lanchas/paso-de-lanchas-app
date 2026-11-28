@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     // Código generado por Prisma
     "src/generated/**",
     "coverage/**",
+    // Worker de MapLibre copiado de node_modules (scripts/copy-maplibre-worker.mjs)
+    "public/vendor/**",
   ]),
 ]);
 

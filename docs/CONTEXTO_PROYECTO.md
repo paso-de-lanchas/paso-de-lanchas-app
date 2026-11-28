@@ -282,3 +282,24 @@ Este proyecto es **ingeniería de software**: todo código debe:
 - Lo que hoy registra la bitácora (RF-122): inicios y cierres de sesión, rechazos, registro, contraseñas, cuentas del
   personal, computadoras, recargas, reembolsos, ajustes, tarifas, embarcaciones, fila y salidas. Con el #67 ya se
   registran el cobro del cruce y el QR rechazado; faltan las de choferes (#66) y cancelaciones (#59), que llegan con sus PRs.
+
+### 2026-11-27 — Mapa en vivo (#72)
+- `/pasajero/mapa` (enlace "Ver el mapa en vivo" en el inicio) y `/admin/mapa` (el admin ve además la ocupación,
+  RF-081). Muelles y embarcaciones en tránsito sobre un mapa de **OpenStreetMap** con **MapLibre 6.18.0** (versión fija,
+  gratuito y sin llave; se muestra el crédito que pide su licencia).
+- Se actualiza cada 7 s sin recargar (RF-078) desde `GET /api/mapa`, que exige sesión y no trae datos personales (ni
+  chofer ni pasajeros).
+- **Llegada estimada (RF-079):** con ubicación reciente y en movimiento (≥ 2 km/h), distancia que falta al muelle entre
+  la velocidad; si no, hora de salida más `crossing_minutes`.
+- **Sin señal (RF-080):** una ubicación con más de 60 s se marca "Sin señal reciente · última ubicación hace X min".
+- Coordenadas basura del celular se descartan.
+- Debajo del mapa hay una **lista accesible** con la misma información; si el equipo no soporta WebGL, la lista
+  sigue funcionando.
+- La consulta toma la **última** ubicación de cada salida en tránsito con un `LEFT JOIN LATERAL` sobre el índice
+  `trip_locations(departure_id, recorded_at)`.
+- **El GPS del chofer (#49) todavía no existe:** `npm run dev:simular-viaje` simula una lancha que cruza en 2 minutos
+  (también sirve para la demo). El #49 solo tiene que insertar en `trip_locations` y el mapa ya lo muestra.
+- MapLibre 6 no encuentra su worker con el empaquetado de Next.js. `scripts/copy-maplibre-worker.mjs` lo copia a
+  `public/vendor/` antes de `dev` y `build`; esa carpeta va en `.gitignore` y fuera del lint.
+- **Hallazgo:** las coordenadas de los muelles del seed caen en el centro de Coatzacoalcos, sobre tierra. Hay que
+  tomarlas reales en la visita de campo.
