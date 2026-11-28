@@ -4,16 +4,22 @@ import { Suspense } from "react";
 
 import { getProfileByEmail } from "@/application/account/get-profile";
 import { PrismaAccountRepository } from "@/infrastructure/account/prisma-account-repository";
+import { PrismaNotificationRepository } from "@/infrastructure/notifications/prisma-notification-repository";
 import { requireRole } from "@/lib/auth/require-role";
 
+import { NotificationPreferencesForm } from "./notification-preferences-form";
 import { ProfileForm } from "./profile-form";
 
 export const metadata: Metadata = { title: "Mi cuenta" };
 
 async function AccountContent() {
   const sessionUser = await requireRole("PASSENGER");
-  const repo = new PrismaAccountRepository();
-  const profile = await getProfileByEmail(repo, sessionUser.email);
+  const accountRepo = new PrismaAccountRepository();
+  const notifRepo = new PrismaNotificationRepository();
+  const [profile, notificationsEnabled] = await Promise.all([
+    getProfileByEmail(accountRepo, sessionUser.email),
+    notifRepo.isNotificationsEnabled(sessionUser.id),
+  ]);
 
   return (
     <div className="space-y-5">
@@ -29,6 +35,8 @@ async function AccountContent() {
             : null,
         }}
       />
+
+      <NotificationPreferencesForm initialEnabled={notificationsEnabled} />
 
       <section className="rounded-2xl border border-red-200 bg-white p-5 shadow-xs">
         <h2 className="font-heading text-base font-bold text-red-800">Zona de baja</h2>
