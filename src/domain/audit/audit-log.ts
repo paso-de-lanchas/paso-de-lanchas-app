@@ -76,6 +76,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   PASSWORD_CHANGED: "Contraseña cambiada",
   PASSWORD_CHANGE_FAILED: "Cambio de contraseña fallido",
   ACCOUNT_CANCELLED: "Cuenta cancelada",
+  NOTIFICATION_PREFERENCES_UPDATED: "Preferencias de notificaciones",
   STAFF_ACCOUNT_CREATED: "Cuenta de personal creada",
   STAFF_ACCOUNT_DEACTIVATED: "Cuenta de personal desactivada",
   STAFF_ACCOUNT_REACTIVATED: "Cuenta de personal reactivada",

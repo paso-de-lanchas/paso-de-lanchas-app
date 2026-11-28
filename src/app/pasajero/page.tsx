@@ -1,25 +1,33 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { createListPassengerNotifications } from "@/application/notifications/list-passenger-notifications";
 import { createGetDocksStatus } from "@/application/passenger-info/get-docks-status";
 import { systemClock } from "@/application/shared/ports";
 import { LogoutButton } from "@/components/logout-button";
+import { serializeNotifications } from "@/domain/notifications/notification";
 import { createPrismaBoardingQueries } from "@/infrastructure/boarding/prisma-boarding-queries";
+import { PrismaNotificationRepository } from "@/infrastructure/notifications/prisma-notification-repository";
 import { PrismaPassengerInfoRepository } from "@/infrastructure/passenger-info/prisma-passenger-info-repository";
 import { requireRole } from "@/lib/auth/require-role";
 
 import { BoardingNotice } from "./boarding-notice";
 import { DocksLiveBoard } from "./docks-live-board";
+import { NotificationsCenter } from "./notifications-center";
 
 export const metadata: Metadata = { title: "Pasajero" };
 
 export default async function PassengerPage() {
   const user = await requireRole("PASSENGER");
-  const repo = new PrismaPassengerInfoRepository();
-  const getDocksStatus = createGetDocksStatus({ repo, clock: systemClock });
-  const [initialStatus, currentBoarding] = await Promise.all([
+  const infoRepo = new PrismaPassengerInfoRepository();
+  const notifRepo = new PrismaNotificationRepository();
+  const getDocksStatus = createGetDocksStatus({ repo: infoRepo, clock: systemClock });
+  const listNotifications = createListPassengerNotifications({ repo: notifRepo });
+
+  const [initialStatus, currentBoarding, notifications] = await Promise.all([
     getDocksStatus(),
     createPrismaBoardingQueries().findCurrentPassengerBoarding(user.id),
+    listNotifications(user.id),
   ]);
 
   return (
@@ -48,6 +56,8 @@ export default async function PassengerPage() {
         Mostrar mi QR
       </Link>
       <BoardingNotice initial={currentBoarding} />
+
+      <NotificationsCenter initial={serializeNotifications(notifications)} />
 
       <DocksLiveBoard initialStatus={initialStatus} />
 
@@ -131,7 +141,8 @@ export default async function PassengerPage() {
             <div>
               <p className="font-heading text-brand text-base font-bold">Mi cuenta</p>
               <p className="text-ink-muted mt-1 text-xs">
-                Datos personales, aviso de privacidad y cancelación de cuenta (RF-014 a RF-016)
+                Datos personales, notificaciones, privacidad y baja de cuenta (RF-014 a RF-016,
+                RF-109)
               </p>
             </div>
             <span className="text-brand mt-3 text-xs font-bold">Abrir →</span>

@@ -282,3 +282,12 @@ Este proyecto es **ingeniería de software**: todo código debe:
 - Lo que hoy registra la bitácora (RF-122): inicios y cierres de sesión, rechazos, registro, contraseñas, cuentas del
   personal, computadoras, recargas, reembolsos, ajustes, tarifas, embarcaciones, fila y salidas. Con el #67 ya se
   registran el cobro del cruce y el QR rechazado; faltan las de choferes (#66) y cancelaciones (#59), que llegan con sus PRs.
+
+  ### 2026-11-27 — Notificaciones al pasajero (#74)
+- **Dominio y aplicación (`src/domain/notifications/`, `src/application/notifications/`):** reglas puras y casos de uso para crear notificaciones individuales, difundir avisos publicados o suspensiones de servicio a pasajeros activos con notificaciones habilitadas (RF-107), construir mensajes de salida cancelada con reembolso (RF-108), listar notificaciones separadas en no leídas/leídas con contador, marcar una o todas como leídas y actualizar preferencias (RF-109).
+- **Integración con recargas (RF-106):** `PrismaWalletRepository.move` crea automáticamente una notificación `RECHARGE_CREDITED` dentro de la misma transacción cada vez que se acredita una recarga (`TOPUP_CASH` o `TOPUP_ONLINE`) a un pasajero con `notificationsEnabled = true`.
+- **Interfaz y API:**
+  - `GET / PATCH /api/pasajero/notificaciones`: consulta no leídas/leídas con contador y marca individual o masivamente como leídas.
+  - `/pasajero`: componente `NotificationsCenter` con contador de sin leer, listas separadas de no leídas y leídas, botones de lectura y actualización cada 10 s.
+  - `/pasajero/cuenta`: interruptor `NotificationPreferencesForm` (RF-109) que actualiza `users.notifications_enabled` y guarda `NOTIFICATION_PREFERENCES_UPDATED` en `audit_logs` en la misma transacción.
+- **Pruebas:** unitarias en dominio y casos de uso (>86 % cobertura), integración en PostgreSQL (`tests/integration/notifications-repository.test.ts`) y E2E en Playwright (`tests/e2e/notificaciones.spec.ts`).

@@ -57,7 +57,7 @@ repositorio:
 - **Flota:** registrar y editar embarcaciones (#11) y cambiar su estado con historial en `/admin/flota/[id]` (#12).
 - **Dinero:** tarifas con vigencia e historial en `/admin/tarifas` (#14); saldo, historial, recarga en efectivo,
   reembolsos y ajustes en `/admin/recargas` y `/pasajero/saldo` (#37, bitácora en la misma transacción).
-- **Pasajero:** galería de vehículos (#40), información en vivo de muelles, horarios, tarifas y mis viajes (#48, #62).
+- **Pasajero:** galería de vehículos (#40), información en vivo de muelles, horarios, tarifas y mis viajes (#48, #62), bandeja de notificaciones y preferencias (#74).
 - **QR dinámico (#20):** el celular genera el código TOTP sin internet; `verifyQr` devuelve `userId`, `credentialId` y
   `timeStep` y **no** marca el código como usado (eso lo hace el abordaje). Una credencial revocada se renueva sola con
   internet; cerrar sesión borra `qr:*` del celular. Requiere `QR_SIGNING_SECRET` (ver Stack).
@@ -184,6 +184,7 @@ npm run format             Prettier
 | 2026-11-27 | Pamela | Fila y salidas (#43, PR #58): auditoría obligatoria en casos de uso, bloqueo de muelle FOR UPDATE en transacciones, verificación global de embarcacion activa con indice unico parcial, validación Zod y prueba E2E de flujo de fila/abordaje |
 | 2026-11-27 | Omar (con Claude) | Escaneo del QR (#44): `/admin/taquilla` con cámara (html5-qrcode 2.3.8) o lector USB; `boardWithQr` en una transacción (bloqueo de la salida, cupo, tarifa con la Strategy de #15, cobro `FARE_CHARGE`, venta `QR_BALANCE`, abordaje con lugar, credencial y paso de tiempo, bitácora); al llenarse cierra y pasa la siguiente; vehículos en el transbordador; aviso al pasajero cada 5 s (`GET /api/pasajero/abordaje`); la tarifa usa una sola regla de descuento (`isDiscountActive`); pruebas de concurrencia (20 escaneos / 10 lugares) y de navegador |
 | 2026-11-27 | Omar (con Claude) | Bitácora (#69): `/superadmin/bitacora` de solo lectura con filtros por usuario, acción y rango de fechas en hora de México (Zod; un filtro inválido se ignora y se avisa), 50 por página, detalle con contraseñas, tokens y secretos ocultos; prueba de integración de que la base no deja modificar ni borrar (RF-123) |
+| 2026-11-27 | José | Notificaciones al pasajero (#74): bandeja con contador de no leídas y leídas en `/pasajero`, API `GET/PATCH /api/pasajero/notificaciones`, disparo automático al acreditar recargas en monedero (RF-106), difusión de avisos de servicio (RF-107), formato de reembolso por cancelación (RF-108) e interruptor de preferencias en `/pasajero/cuenta` con auditoría (RF-109) |
 
 ## Registro de errores y soluciones
 

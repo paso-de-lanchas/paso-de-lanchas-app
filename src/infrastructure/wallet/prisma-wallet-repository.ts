@@ -1,25 +1,27 @@
 import type { ChangeAudit } from "@/application/shared/ports";
 import type {
   OpenCashShiftInput,
+  PassengerWalletSummary,
   WalletMovementInput,
+  WalletRecord,
   WalletRepository,
   WalletTransactionItem,
   WalletTransactionPage,
   WalletTransactionReceipt,
-  WalletRecord,
-  PassengerWalletSummary,
 } from "@/application/wallet/ports";
+import { buildRechargeCreditedNotification } from "@/domain/notifications/notification";
+import { DomainError } from "@/domain/shared/domain-error";
+import { Money } from "@/domain/shared/money";
 import {
   applyCredit,
   applyDebit,
   DEFAULT_TOP_UP_LIMITS,
   validateTopUpLimits,
 } from "@/domain/wallet/wallet";
-import { DomainError } from "@/domain/shared/domain-error";
-import { Money } from "@/domain/shared/money";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { auditLogData } from "@/infrastructure/audit/prisma-audit-logger";
 import { prisma } from "@/infrastructure/db/prisma";
+import { createNotificationInTx } from "@/infrastructure/notifications/prisma-notification-repository";
 
 const PAGE_SIZE = 20;
 
@@ -335,7 +337,14 @@ export class PrismaWalletRepository implements WalletRepository<Prisma.Transacti
         id: true,
         balance: true,
         version: true,
-        user: { select: { role: true, status: true, deletedAt: true } },
+        user: {
+          select: {
+            role: true,
+            status: true,
+            deletedAt: true,
+            notificationsEnabled: true,
+          },
+        },
       },
     });
     if (!wallet) {
@@ -394,6 +403,23 @@ export class PrismaWalletRepository implements WalletRepository<Prisma.Transacti
         entityId: transaction.id,
       }),
     });
+
+    if (
+      direction === "CREDIT" &&
+      (input.type === "TOPUP_CASH" || input.type === "TOPUP_ONLINE") &&
+      wallet.user.notificationsEnabled
+    ) {
+      await createNotificationInTx(tx, {
+        userId: input.userId,
+        draft: buildRechargeCreditedNotification({
+          amountCents: input.amount.cents,
+          method: input.type === "TOPUP_CASH" ? "CASH" : "ONLINE",
+          balanceAfterCents: balanceAfter.cents,
+        }),
+        createdAt: input.at,
+      });
+    }
+
     return { ...mapTransaction(transaction), walletUserId: input.userId };
   }
 }
