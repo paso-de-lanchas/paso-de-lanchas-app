@@ -1,25 +1,35 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { createListPassengerNotices } from "@/application/announcements/list-passenger-notices";
 import { createGetDocksStatus } from "@/application/passenger-info/get-docks-status";
 import { systemClock } from "@/application/shared/ports";
 import { LogoutButton } from "@/components/logout-button";
+import { PrismaAnnouncementRepository } from "@/infrastructure/announcements/prisma-announcement-repository";
 import { createPrismaBoardingQueries } from "@/infrastructure/boarding/prisma-boarding-queries";
 import { PrismaPassengerInfoRepository } from "@/infrastructure/passenger-info/prisma-passenger-info-repository";
 import { requireRole } from "@/lib/auth/require-role";
 
 import { BoardingNotice } from "./boarding-notice";
 import { DocksLiveBoard } from "./docks-live-board";
+import { ServiceAnnouncements } from "./service-announcements";
 
 export const metadata: Metadata = { title: "Pasajero" };
 
 export default async function PassengerPage() {
   const user = await requireRole("PASSENGER");
-  const repo = new PrismaPassengerInfoRepository();
-  const getDocksStatus = createGetDocksStatus({ repo, clock: systemClock });
-  const [initialStatus, currentBoarding] = await Promise.all([
+  const infoRepo = new PrismaPassengerInfoRepository();
+  const announcementRepo = new PrismaAnnouncementRepository();
+  const getDocksStatus = createGetDocksStatus({ repo: infoRepo, clock: systemClock });
+  const listPassengerNotices = createListPassengerNotices({
+    repo: announcementRepo,
+    clock: systemClock,
+  });
+
+  const [initialStatus, currentBoarding, notices] = await Promise.all([
     getDocksStatus(),
     createPrismaBoardingQueries().findCurrentPassengerBoarding(user.id),
+    listPassengerNotices(),
   ]);
 
   return (
@@ -47,6 +57,7 @@ export default async function PassengerPage() {
       >
         Mostrar mi QR
       </Link>
+      <ServiceAnnouncements notices={notices} />
       <BoardingNotice initial={currentBoarding} />
 
       <DocksLiveBoard initialStatus={initialStatus} />
