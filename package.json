@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/copy-maplibre-worker.mjs",
+    "prebuild": "node scripts/copy-maplibre-worker.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -24,7 +26,8 @@
     "db:reset": "prisma migrate reset",
     "db:test:prepare": "node scripts/db-test-prepare.mjs",
     "postinstall": "prisma generate",
-    "check": "npm run lint && npm run typecheck && npm test"
+    "check": "npm run lint && npm run typecheck && npm test",
+    "dev:simular-viaje": "tsx scripts/dev-simular-viaje.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.2",
@@ -32,6 +35,7 @@
     "@prisma/client": "7.10.1",
     "html5-qrcode": "2.3.8",
     "idb-keyval": "^6.3.0",
+    "maplibre-gl": "6.18.0",
     "next": "16.4.6",
     "nodemailer": "10.3.1",
     "otplib": "^13.6.0",

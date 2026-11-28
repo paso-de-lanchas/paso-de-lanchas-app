@@ -53,3 +53,6 @@ src/generated/
 
 # Credenciales subidas en desarrollo (Issue #18)
 uploads/
+
+# Worker de MapLibre copiado de node_modules (scripts/copy-maplibre-worker.mjs)
+/public/vendor/

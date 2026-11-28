@@ -65,6 +65,10 @@ repositorio:
   la salida que aborda en el muelle del admin (`SELECT … FOR UPDATE`), revisa cupo, calcula la tarifa con la Strategy
   de #15, cobra del saldo, crea la venta y el abordaje con lugar consecutivo, credencial y paso de tiempo; si la
   salida se llena la cierra y pasa la siguiente de la fila. El pasajero ve su lugar en `/pasajero` (cada 5 s).
+- **Mapa en vivo (#72):** `/pasajero/mapa` y `/admin/mapa` (el admin ve la ocupación) con MapLibre 6.18.0 y mapa de
+  OpenStreetMap; se actualiza cada 7 s (`GET /api/mapa`, sin datos personales). La llegada se calcula con la distancia que
+  falta y la velocidad, o con la duración típica del cruce si no hay señal reciente ("última ubicación hace…"). Mientras
+  no exista el GPS del chofer (#49), `npm run dev:simular-viaje` simula una lancha cruzando.
 - **En revisión (PRs abiertos):** tarifa vigente #15 (PR #50), fila y salidas #43 (PR #58), cancelar salida y regreso
   #46 (PR #59), horario e incidentes #47 (PR #60), choferes #13 (PR #66), componentes #19 (PR #54).
 - **Permisos en GitHub (D26):** equipo `desarrollo` con escritura; en `develop` todo entra por PR con la CI en verde y
@@ -77,8 +81,8 @@ repositorio:
   `node_modules/next/dist/docs/` (ver `AGENTS.md`).
 - **PostgreSQL 17 + Prisma 7.10** (cliente generado en `src/generated/prisma`, adaptador `@prisma/adapter-pg`,
   configuración en `prisma.config.ts`). Prisma 7.10.1 está **fijado**: npm marca como "latest" la 8.0 RC, no actualizar.
-- **Zod 4**, **@node-rs/argon2**, **otplib** (QR TOTP). **nodemailer 10.3** (correo SMTP). **html5-qrcode 2.3.8** (lector de cámara de la taquilla). Pendientes de instalar
-  por su módulo: MapLibre GL (Diego), Serwist (Diego), SDK de Mercado Pago (Cova), shadcn/ui (Diego/José).
+- **Zod 4**, **@node-rs/argon2**, **otplib** (QR TOTP). **nodemailer 10.3** (correo SMTP). **html5-qrcode 2.3.8** (lector de cámara de la taquilla). **maplibre-gl 6.18.0**
+  (mapa en vivo; su worker se copia a `public/vendor/` antes de `dev` y `build`). Pendientes de instalar por su módulo: Serwist (Diego), SDK de Mercado Pago (Cova), shadcn/ui (Diego/José).
   **Login propio sin librería** (ADR 0002 aceptada): Argon2 + sesiones en la tabla `sessions`.
 - Tiempo real por consultas periódicas (5–10 s). Hosting: **Vercel** + **Neon**. CI: **GitHub Actions**
   (`.github/workflows/ci.yml`).
@@ -132,6 +136,7 @@ docker compose up -d       servicios locales (BD 5434, BD de pruebas 5435, Mailp
 npm run dev                app en http://localhost:3000 (salud: /api/health)
 npm run db:migrate         aplica/crea migraciones en la BD local (-- --name descripcion para crear una nueva)
 npm run db:seed            datos de ejemplo (cuentas de prueba al inicio de prisma/seed.ts)
+npm run dev:simular-viaje   simula una lancha cruzando (mapa en vivo); -- --terminar la detiene
 npm run dev:aprobar-computadoras  autoriza en la BD local las computadoras pendientes (-- correo: solo las de esa cuenta)
 npm run db:studio          ver/editar datos locales con Prisma Studio
 npm run db:test:prepare    migra la BD de pruebas
@@ -184,6 +189,7 @@ npm run format             Prettier
 | 2026-11-27 | Pamela | Fila y salidas (#43, PR #58): auditoría obligatoria en casos de uso, bloqueo de muelle FOR UPDATE en transacciones, verificación global de embarcacion activa con indice unico parcial, validación Zod y prueba E2E de flujo de fila/abordaje |
 | 2026-11-27 | Omar (con Claude) | Escaneo del QR (#44): `/admin/taquilla` con cámara (html5-qrcode 2.3.8) o lector USB; `boardWithQr` en una transacción (bloqueo de la salida, cupo, tarifa con la Strategy de #15, cobro `FARE_CHARGE`, venta `QR_BALANCE`, abordaje con lugar, credencial y paso de tiempo, bitácora); al llenarse cierra y pasa la siguiente; vehículos en el transbordador; aviso al pasajero cada 5 s (`GET /api/pasajero/abordaje`); la tarifa usa una sola regla de descuento (`isDiscountActive`); pruebas de concurrencia (20 escaneos / 10 lugares) y de navegador |
 | 2026-11-27 | Omar (con Claude) | Bitácora (#69): `/superadmin/bitacora` de solo lectura con filtros por usuario, acción y rango de fechas en hora de México (Zod; un filtro inválido se ignora y se avisa), 50 por página, detalle con contraseñas, tokens y secretos ocultos; prueba de integración de que la base no deja modificar ni borrar (RF-123) |
+| 2026-11-27 | Omar (con Claude) | Mapa en vivo (#72): `/pasajero/mapa` y `/admin/mapa` con MapLibre 6.18.0 + OpenStreetMap, consulta cada 7 s (`GET /api/mapa`), llegada por distancia y velocidad o por duración del cruce, aviso de "última ubicación hace…", lista accesible si el equipo no soporta WebGL; repositorio con la última ubicación por salida (LATERAL); simulador `dev:simular-viaje` mientras llega el GPS (#49) |
 
 ## Registro de errores y soluciones
 
@@ -205,10 +211,12 @@ npm run format             Prettier
 | 2026-11-25 | `zsh: no matches found: --include=*.ts` al usar `grep` | zsh expande `*.ts` antes de pasarlo a `grep` | Poner el patrón entre comillas: `--include="*.ts"` |
 | 2026-11-27 | El inicio del pasajero mostraba dos veces el tablero de muelles | Al resolver un conflicto quedó repetido `<DocksLiveBoard>` en `src/app/pasajero/page.tsx` | Se quitó el repetido (PR del #44); al resolver conflictos, revisar la pantalla y no solo que compile |
 | 2026-11-27 | Playwright: `getByRole("alert")` encuentra dos elementos | Next.js agrega su propio aviso de navegación con `role="alert"` | Darle nombre a la región (`aria-label`) y buscarla con `getByRole("alert", { name })` |
-
+| 2026-11-27 | MapLibre 6: `Worker failed to load` y el mapa no se dibuja | Con el empaquetado de Next.js, MapLibre no encuentra su worker por la ruta relativa | `scripts/copy-maplibre-worker.mjs` lo copia a `public/vendor/` (predev/prebuild) y `setWorkerUrl` apunta ahí |
 
 ## Datos pendientes de confirmar en campo
 
+- **Coordenadas de los muelles:** las del seed caen en el centro de Coatzacoalcos, sobre tierra (se ve en el mapa en
+  vivo); hay que tomar las reales a la orilla del río en la visita de campo.
 - Capacidad real de cada lancha activa (hoy operan 2; el resto está embargado por el SAT).
 - Capacidad del transbordador en servicio (vehículos por tipo + personas); hoy opera 1, el otro está descompuesto.
 - **PENDIENTE:** si una lancha no se llena, ¿sale tras un tiempo máximo o espera siempre? (mientras, el admin puede cerrar el abordaje).

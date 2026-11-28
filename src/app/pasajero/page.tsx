@@ -48,6 +48,12 @@ export default async function PassengerPage() {
         Mostrar mi QR
       </Link>
       <BoardingNotice initial={currentBoarding} />
+      <Link
+        href="/pasajero/mapa"
+        className="border-brand text-brand flex min-h-12 w-full items-center justify-center rounded-xl border-2 px-4 font-semibold"
+      >
+        Ver el mapa en vivo
+      </Link>
 
       <DocksLiveBoard initialStatus={initialStatus} />
 
