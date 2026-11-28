@@ -37,12 +37,24 @@ export default async function AdminPage() {
         </Link>
         <Link
           href="/admin/descuentos"
-          className="border-brand/20 text-brand hover:border-brand flex items-center justify-between rounded-2xl border bg-white px-5 py-4 shadow-xs transition"
+          className="border-brand/20 text-brand hover:border-brand mb-3 flex items-center justify-between rounded-2xl border bg-white px-5 py-4 shadow-xs transition"
         >
           <div>
             <p className="font-heading text-brand text-base font-bold">Revisión de descuentos</p>
             <p className="text-ink-muted text-xs">
               Valida credenciales de Estudiante o INAPAM y asigna vigencia (RF-019 y RF-020)
+            </p>
+          </div>
+          <span className="text-brand text-sm font-bold">Abrir →</span>
+        </Link>
+        <Link
+          href="/admin/avisos"
+          className="border-brand/20 text-brand hover:border-brand flex items-center justify-between rounded-2xl border bg-white px-5 py-4 shadow-xs transition"
+        >
+          <div>
+            <p className="font-heading text-brand text-base font-bold">Avisos a pasajeros</p>
+            <p className="text-ink-muted text-xs">
+              Publica comunicados por clima u operación por muelle o general (RF-104 y RF-105)
             </p>
           </div>
           <span className="text-brand text-sm font-bold">Abrir →</span>
@@ -76,6 +88,7 @@ export default async function AdminPage() {
             name: "Horario de servicio y avisos",
             owner: "José",
             requirements: "RF-102 a RF-105",
+            href: "/admin/avisos",
           },
           { name: "Reportes", owner: "Pamela", requirements: "RF-110 a RF-115" },
         ]}

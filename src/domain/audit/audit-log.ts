@@ -101,6 +101,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   DEPARTURE_BOARDING_CLOSED: "Abordaje cerrado",
   DEPARTURE_QUEUE_REORDERED: "Fila reordenada",
   WAITLIST_ENTRY_ADDED: "Lista de espera",
+  ANNOUNCEMENT_PUBLISHED: "Aviso publicado",
+  ANNOUNCEMENT_CLOSED: "Aviso finalizado",
 };
 
 export function auditActionLabel(action: string): string {
