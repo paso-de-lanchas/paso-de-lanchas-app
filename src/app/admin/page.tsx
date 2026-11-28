@@ -12,6 +12,18 @@ export default async function AdminPage() {
     <div className="mx-auto w-full max-w-2xl">
       <div className="px-6 pt-6">
         <Link
+          href="/admin/taquilla"
+          className="bg-brand mb-3 flex items-center justify-between rounded-2xl px-5 py-4 text-white shadow-xs transition"
+        >
+          <div>
+            <p className="font-heading text-base font-bold">Taquilla · Escanear QR</p>
+            <p className="text-xs text-white/80">
+              Cobra del saldo y asigna el lugar en un solo paso (RF-043 a RF-052)
+            </p>
+          </div>
+          <span className="text-sm font-bold">Abrir →</span>
+        </Link>
+        <Link
           href="/admin/recargas"
           className="border-brand/20 text-brand hover:border-brand mb-3 flex items-center justify-between rounded-2xl border bg-white px-5 py-4 shadow-xs transition"
         >
@@ -41,7 +53,12 @@ export default async function AdminPage() {
         userName={user.fullName}
         role="Administrador (taquilla)"
         modules={[
-          { name: "Abordaje y taquilla", owner: "Cova", requirements: "RF-043 a RF-054" },
+          {
+            name: "Abordaje y taquilla",
+            owner: "Omar y Cova",
+            requirements: "RF-043 a RF-054",
+            href: "/admin/taquilla",
+          },
           {
             name: "Operación de muelles y salidas",
             owner: "Pamela",

@@ -20,9 +20,12 @@ const SECTIONS = [
     title: "Computadoras",
     description: "Aprobar o revocar las computadoras de cada muelle (RF-120, RF-121)",
   },
+  {
+    href: "/superadmin/bitacora",
+    title: "Bitácora",
+    description: "Quién hizo cada cobro, recarga o cambio, con filtros (RF-122 a RF-124)",
+  },
 ];
-
-const PENDING = [{ name: "Auditoría", requirements: "RF-122 a RF-124" }];
 
 export default function SuperadminPage() {
   // Leer la sesión (cookie) es un dato de la petición: va dentro de Suspense.
@@ -58,10 +61,6 @@ async function SuperadminHome() {
           </li>
         ))}
       </ul>
-
-      <p className="text-ink-muted text-sm">
-        En construcción: {PENDING.map((p) => `${p.name} (${p.requirements})`).join(", ")}.
-      </p>
     </main>
   );
 }

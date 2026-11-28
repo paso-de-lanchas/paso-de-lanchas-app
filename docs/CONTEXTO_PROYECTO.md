@@ -184,11 +184,6 @@ Este proyecto es **ingeniería de software**: todo código debe:
 - Seguridad del personal (#9, D25): bloqueo por intentos, computadoras autorizadas con cookie de dispositivo (solo su
   hash en la base), cierre por inactividad, sesiones cortadas si se retira la computadora y bitácora de cada rechazo.
   Script de desarrollo `npm run dev:aprobar-computadoras` mientras llega la pantalla del superadmin (sprint 3).
-### 2026-11-22 — Tarifas con vigencia (#14)
-- Se agregaron reglas de dominio para categorías y tipos de vehículo, y casos de uso para establecer tarifas, consultar las vigentes y recuperar su historial.
-- El repositorio Prisma cierra la tarifa anterior y crea la nueva dentro de la misma transacción; la restricción PostgreSQL `fares_no_overlap` sigue siendo la última defensa contra traslapes.
-- La pantalla `/admin/tarifas` permite configurar los precios de lancha, peatón y cada tipo de vehículo del transbordador, ver las vigencias y consultar el historial. Página y acción validan el rol `ADMIN`.
-- Las tarifas seed se conservan como aproximadas hasta la visita de campo.
 - Registro de pasajero (#6): nombre, correo, celular a 10 dígitos y contraseña (8+ con letra y número); aviso de
   privacidad obligatorio (`privacy_accepted_at`). La cuenta nace `PENDING_VERIFICATION` con monedero en $0 y se activa
   con un enlace de 24 h que se confirma con un botón (no al abrirlo, para que los antivirus de correo no lo gasten).
@@ -199,6 +194,9 @@ Este proyecto es **ingeniería de software**: todo código debe:
   contraseña desde la cuenta pide la actual y cierra las demás sesiones. Con contraseña temporal
   (`must_change_password`, la que asigna el superadmin) el login lleva a `/cuenta/cambiar-contrasena` y `requireRole` /
   `assertRole` no dejan hacer nada más hasta cambiarla. Cada cambio avisa por correo al dueño.
+- Calcular tarifa vigente al abordar (#15): Factory elige la estrategia de lancha o transbordador; ambas seleccionan
+  la tarifa válida en el instante del abordaje. La estrategia de lancha aplica descuentos aprobados hasta el último día
+  de vigencia en la fecha local de Coatzacoalcos; si no hay una tarifa aplicable, devuelve `FARE_NOT_CONFIGURED`.
 
 ### 2026-11-23 — Permisos del equipo en GitHub
 - Un integrante no podía hacer push de su rama: todos tenían solo **lectura** en el repo de la organización. Pamela y
@@ -243,3 +241,48 @@ Este proyecto es **ingeniería de software**: todo código debe:
 ### 2026-11-27 — Cancelación de salida, retorno y administración de choferes (#46, #13)
 - Cancelación de salida y retorno (#46): validación estricta de muelle (ctorDockId) en cancelación, salida de retorno y consulta de abordajes, auditoría obligatoria con uditLogger y uso de prismaAuditLogger compartido en la acción del detalle.
 - Choferes (#13): casos de uso (list-drivers, update-driver, ssign-driver-to-vessel, unassign-driver), repositorio Prisma y vistas /admin/choferes y /admin/choferes/[id] protegidas con equireRole("ADMIN", "SUPERADMIN").
+  (lo usan las pruebas de navegador, que corren en paralelo).
+
+### 2026-11-26 — Fila y salidas (#43) y choferes (#13)
+- Fila y salidas (#43): se incorporaron la validación de muelle en `enqueueDeparture`, el bloqueo de muelle con `FOR UPDATE` dentro de transacciones, el registro en bitácora de auditoría (`DEPARTURE_ENQUEUED`, `DEPARTURE_BOARDING_STARTED` y `DEPARTURE_BOARDING_CLOSED`) y pruebas de integración con chofer real.
+- Choferes (#13): se implementaron los casos de uso (`list-drivers`, `update-driver`, `assign-driver-to-vessel`, `unassign-driver`), el repositorio Prisma (`PrismaDriverRepository`) y las vistas de administración en `/admin/choferes` y `/admin/choferes/[id]` protegidas con `requireRole("ADMIN", "SUPERADMIN")`.
+
+### 2026-11-22 — Tarifas con vigencia (#14)
+- Se agregaron reglas de dominio para categorías y tipos de vehículo, y casos de uso para establecer tarifas, consultar las vigentes y recuperar su historial.
+- El repositorio Prisma cierra la tarifa anterior y crea la nueva dentro de la misma transacción; la restricción PostgreSQL `fares_no_overlap` sigue siendo la última defensa contra traslapes.
+- La pantalla `/admin/tarifas` permite configurar los precios de lancha, peatón y cada tipo de vehículo del transbordador, ver las vigencias y consultar el historial. Página y acción validan el rol `ADMIN`.
+- Las tarifas seed se conservan como aproximadas hasta la visita de campo.
+
+### 2026-11-27 — Escaneo del QR: cobro y lugar en una sola transacción (#44)
+- `/admin/taquilla`: el admin escanea con la cámara (html5-qrcode 2.3.8, cargada solo al abrirla) o con el lector USB,
+  que escribe el QR en un campo y presiona Enter. El muelle y la computadora salen de la sesión (`getCurrentStaffPost`:
+  la computadora debe seguir aprobada y ser del muelle del admin), nunca del formulario.
+- `createBoardWithQr` (`src/application/boarding/`): verifica el QR fuera de la transacción (rechazos a la bitácora
+  como `BOARDING_QR_REJECTED`) y dentro de **una** transacción (`PrismaBoardingStore`, `ReadCommitted`): bloquea la
+  salida que aborda (`SELECT … FOR UPDATE OF d`), revisa cupo y espacio del vehículo, calcula la tarifa con la Strategy
+  de #15, revisa el saldo (dice cuánto falta), crea la venta `QR_BALANCE`, cobra `FARE_CHARGE` con el monedero de #37
+  y crea el abordaje con lugar consecutivo (mayor lugar usado + 1, porque los cancelados no se renumeran), credencial y
+  paso de tiempo. Si la salida se llena se cierra y pasa a abordar la siguiente de la fila del muelle.
+- Errores con códigos estables: `NO_DEPARTURE_BOARDING`, `DEPARTURE_FULL`, `ALREADY_BOARDED`, `QR_REJECTED`,
+  `QR_ALREADY_USED` (índice único credencial + paso de tiempo), `INSUFFICIENT_BALANCE` (con el faltante),
+  `VEHICLE_CHOICE_REQUIRED` (el admin elige el vehículo y se reintenta con el mismo QR), `VEHICLE_SPACE_FULL`,
+  `VEHICLE_NOT_ALLOWED` (lancha), `PASSENGER_NOT_ACTIVE`.
+- Decisión: la tarifa usa **una sola** regla de descuento, `isDiscountActive` de `domain/account` (la de #18). Un
+  descuento aprobado sin fecha de vencimiento no se aplica.
+- Pruebas: 20 escaneos simultáneos sobre 10 lugares dan exactamente 10 abordajes, 10 cobros y lugares 1 a 10 (sin el
+  bloqueo la prueba falla); el mismo QR dos veces al mismo tiempo, o en dos muelles, se cobra una sola vez; si falla un
+  paso a la mitad el saldo no cambia. Playwright: QR inventado, cobro con lugar 1, QR repetido y aviso al pasajero.
+- Integrado con la fila (#43): bloquea primero el muelle y luego la salida (el mismo orden que la fila) y pasa la
+  siguiente con `pickNextInQueue` / `reorderQueue`. Pendiente: aplicar el horario de servicio (#47) al escanear.
+
+### 2026-11-27 — Consulta de la bitácora (#69)
+- `/superadmin/bitacora` (solo `SUPERADMIN`): tabla de 50 registros por página, la más reciente primero, con fecha en
+  hora de México, usuario, acción (con nombre en español), sobre qué, computadora y detalle.
+- Filtros en la dirección (`usuario`, `accion`, `desde`, `hasta`, `pagina`), validados con Zod uno por uno. Lo
+  inválido se ignora y se avisa, así que un enlace alterado nunca truena la página. "Hasta" incluye todo su día
+  (México es UTC-6 todo el año).
+- El detalle oculta en cualquier nivel las llaves que parezcan contraseña, token, secreto, hash, cookie o tarjeta.
+- La base ya impedía modificar o borrar (trigger `audit_logs_immutable`); ahora una prueba de integración lo confirma.
+- Lo que hoy registra la bitácora (RF-122): inicios y cierres de sesión, rechazos, registro, contraseñas, cuentas del
+  personal, computadoras, recargas, reembolsos, ajustes, tarifas, embarcaciones, fila y salidas. Con el #67 ya se
+  registran el cobro del cruce y el QR rechazado; faltan las de choferes (#66) y cancelaciones (#59), que llegan con sus PRs.

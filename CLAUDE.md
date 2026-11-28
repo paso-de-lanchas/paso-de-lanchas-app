@@ -43,42 +43,32 @@ repositorio:
 
 ## Estado actual
 
-- **Fase:** **Sprint 2 · Cimientos** (del 18 al sábado 21 de noviembre de 2026, 9:00 p. m.) — programación por módulos.
-- **Hecho:** planeación v1.2, flujo de GitHub v1.0, requisitos funcionales v1.0, prototipo completo (6 iteraciones,
-  31 pantallas), modelo relacional v2.1 y entidad-relación final (incluyen Venta e Incidente, ver contexto D17–D19).
-- **Hecho (2026-11-12):** organización `paso-de-lanchas` con los repos **paso-de-lanchas-app** (público, este) y
-  **.github** (perfil y plantillas compartidas); ramas `main` y `develop` protegidas.
-- **Hecho (2026-11-17):** entorno Docker (PostgreSQL 17 + base de pruebas + Mailpit + Adminer) y guía
-  [docs/ENTORNO_DESARROLLO.md](docs/ENTORNO_DESARROLLO.md); **base del proyecto** Next.js 16 con las 32 tablas en
-  Prisma 7 (migración inicial con CHECK, índices parciales y bitácora inmutable), datos de ejemplo, pruebas, CI y
-  reparto de módulos en [docs/MODULOS_Y_RESPONSABLES.md](docs/MODULOS_Y_RESPONSABLES.md).
-- **Hecho (2026-11-18):** PR #3 (base del proyecto) fusionado a `develop` con CI en verde; guía de contribución
-  actualizada en el repo `.github`; los 5 integrantes ya son miembros de la organización.
-- **Sprint 2 en curso:** milestone *Sprint 2 · Cimientos* con 17 issues (#4–#20), cada uno con historia, criterios de
-  aceptación, RF y una sección **"Cómo programarlo, paso a paso"**; todos asignados. Tabla de issues por persona en
-  [docs/MODULOS_Y_RESPONSABLES.md](docs/MODULOS_Y_RESPONSABLES.md).
-- **Siguiente:** que cada quien cierre #4 (preparar su computadora) y use `requireRole` en sus módulos; revisar los PRs
-  del equipo; visita de campo (tarifas, capacidades, máximo de boletos por venta), requisitos no funcionales.
-- **Login listo (issue #7, 2026-11-22):** inicio y cierre de sesión por rol, `requireRole` / `assertRole` /
-  `requireApiRole` en `src/lib/auth/require-role.ts` y `src/proxy.ts`. Uso en docs/MODULOS_Y_RESPONSABLES.md.
-  **Seguridad del personal (#9):** bloqueo por intentos, computadoras autorizadas (admin/superadmin) e inactividad.
-  **Registro de pasajero (#6):** `/registro` y `/verificar-correo` con enlace de un solo uso por correo (Mailpit en
-  local). **Contraseñas (#8):** `/recuperar` (enlace de 30 min, un solo uso, cierra todas las sesiones) y
-  `/cuenta/cambiar-contrasena` (pide la actual; la contraseña temporal del personal obliga a cambiarla antes de seguir).
-  **Saldo y recargas (#37):** `/pasajero/saldo`, búsqueda y recarga en efectivo en `/admin/recargas`, reembolsos,
-  ajustes con motivo, comprobantes, límites configurables y caja abierta al primer cobro. El código quedó en la rama
-  `feature/37-saldo-y-recargas`; el push y PR los realiza Cova.
-  Las demás pantallas por rol siguen temporales.
-- **Tarifas (#14, 2026-11-22):** dominio y casos de uso para configurar, consultar vigentes e historial; repositorio
-  Prisma que cierra la anterior y crea la nueva en una transacción; página `/admin/tarifas` protegida para ADMIN.
-  La fecha de inicio se establece al guardar; tarifas de seed siguen siendo aproximadas y pendientes de validar en campo.
-  **Cuentas del personal (#41):** `/superadmin/personal` crea administradores (con muelle) y choferes con contraseña
-  temporal que se ve una sola vez (y se manda por correo); desactiva (cierra sesiones), reactiva, desbloquea y
-  restablece la contraseña. **Computadoras (#42):** `/superadmin/computadoras` (pendientes, aprobadas y revocadas)
-  aprueba con nombre y muelle (oficina solo para el superadmin) y revoca cerrando sus sesiones. Las demás pantallas
-  por rol siguen temporales.
-- **Permisos en GitHub (2026-11-23, D26):** equipo `desarrollo` con permiso de escritura (los 5 suben sus ramas al
-  repo); en `develop` todo entra por PR con la CI en verde y **solo Omar aprueba y fusiona** (`.github/CODEOWNERS`).
+- **Fase:** **Sprint 4 · Abordaje** (vencido el 25 de noviembre), con rezago de los sprints 2 y 3. La entrega final es el
+  **sábado 28 de noviembre de 2026**. Tabla de issues por persona en
+  [docs/MODULOS_Y_RESPONSABLES.md](docs/MODULOS_Y_RESPONSABLES.md); el estado al día está en los milestones de GitHub.
+- **Cimientos (2026-11-12 a 2026-11-18):** organización `paso-de-lanchas` (repos `paso-de-lanchas-app` y `.github`),
+  ramas `main`/`develop` protegidas, entorno Docker ([docs/ENTORNO_DESARROLLO.md](docs/ENTORNO_DESARROLLO.md)), base
+  Next.js 16 con las 32 tablas en Prisma 7, CI y reparto de módulos.
+- **Cuentas y seguridad:** login por rol (#7) con `requireRole` / `assertRole` / `requireApiRole`
+  (`src/lib/auth/require-role.ts`, `src/proxy.ts`); bloqueo por intentos, computadoras autorizadas e inactividad (#9);
+  registro con verificación de correo (#6); recuperar y cambiar contraseña (#8); cuentas del personal (#41,
+  `/superadmin/personal`) y computadoras del muelle (#42, `/superadmin/computadoras`); cancelar cuenta (#17), perfil y
+  aviso de privacidad (#16), descuentos Estudiante/INAPAM (#18).
+- **Flota:** registrar y editar embarcaciones (#11) y cambiar su estado con historial en `/admin/flota/[id]` (#12).
+- **Dinero:** tarifas con vigencia e historial en `/admin/tarifas` (#14); saldo, historial, recarga en efectivo,
+  reembolsos y ajustes en `/admin/recargas` y `/pasajero/saldo` (#37, bitácora en la misma transacción).
+- **Pasajero:** galería de vehículos (#40), información en vivo de muelles, horarios, tarifas y mis viajes (#48, #62).
+- **QR dinámico (#20):** el celular genera el código TOTP sin internet; `verifyQr` devuelve `userId`, `credentialId` y
+  `timeStep` y **no** marca el código como usado (eso lo hace el abordaje). Una credencial revocada se renueva sola con
+  internet; cerrar sesión borra `qr:*` del celular. Requiere `QR_SIGNING_SECRET` (ver Stack).
+- **Escaneo del QR (#44):** `/admin/taquilla` (cámara con html5-qrcode o lector USB). Una sola transacción bloquea
+  la salida que aborda en el muelle del admin (`SELECT … FOR UPDATE`), revisa cupo, calcula la tarifa con la Strategy
+  de #15, cobra del saldo, crea la venta y el abordaje con lugar consecutivo, credencial y paso de tiempo; si la
+  salida se llena la cierra y pasa la siguiente de la fila. El pasajero ve su lugar en `/pasajero` (cada 5 s).
+- **En revisión (PRs abiertos):** tarifa vigente #15 (PR #50), fila y salidas #43 (PR #58), cancelar salida y regreso
+  #46 (PR #59), horario e incidentes #47 (PR #60), choferes #13 (PR #66), componentes #19 (PR #54).
+- **Permisos en GitHub (D26):** equipo `desarrollo` con escritura; en `develop` todo entra por PR con la CI en verde y
+  **solo Omar aprueba y fusiona** (`.github/CODEOWNERS`).
 
 ## Stack (versiones instaladas)
 
@@ -87,13 +77,17 @@ repositorio:
   `node_modules/next/dist/docs/` (ver `AGENTS.md`).
 - **PostgreSQL 17 + Prisma 7.10** (cliente generado en `src/generated/prisma`, adaptador `@prisma/adapter-pg`,
   configuración en `prisma.config.ts`). Prisma 7.10.1 está **fijado**: npm marca como "latest" la 8.0 RC, no actualizar.
-- **Zod 4**, **@node-rs/argon2**, **otplib** (QR TOTP). **nodemailer 10.3** (correo SMTP). Pendientes de instalar por su módulo: html5-qrcode (Cova),
-  MapLibre GL (Diego), Serwist (Diego), SDK de Mercado Pago (Cova), shadcn/ui (Diego/José).
+- **Zod 4**, **@node-rs/argon2**, **otplib** (QR TOTP). **nodemailer 10.3** (correo SMTP). **html5-qrcode 2.3.8** (lector de cámara de la taquilla). Pendientes de instalar
+  por su módulo: MapLibre GL (Diego), Serwist (Diego), SDK de Mercado Pago (Cova), shadcn/ui (Diego/José).
   **Login propio sin librería** (ADR 0002 aceptada): Argon2 + sesiones en la tabla `sessions`.
 - Tiempo real por consultas periódicas (5–10 s). Hosting: **Vercel** + **Neon**. CI: **GitHub Actions**
   (`.github/workflows/ci.yml`).
 - Pruebas: **Vitest 5** + **Playwright**. Calidad: ESLint 9 + Prettier (el Markdown no se formatea), Sentry.
 - **Node 24 LTS** (`.node-version`, con fnm). Docker Desktop para los servicios locales.
+- **`QR_SIGNING_SECRET`:** clave para cifrar los secretos TOTP del QR (mínimo 32 caracteres). Opcional en desarrollo,
+  **obligatoria en producción** (`src/lib/env.ts`). Se genera con
+  `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`. No cambiarla con credenciales ya
+  emitidas: dejarían de poder descifrarse. Debe existir también en Vercel.
 
 ## Estructura (arquitectura limpia dentro de Next.js)
 
@@ -176,13 +170,20 @@ npm run format             Prettier
 | 2026-11-22 | José | Issue #16 (revisión PR #23): eliminar `userId` oculto del formulario y obtener sesión en servidor con `requireRole`/`assertRole` |
 | 2026-11-23 | Omar (con Claude) | Permisos en GitHub (D26): equipo `desarrollo` con escritura, `.github/CODEOWNERS`, reglas de `develop` (PR obligatorio, CI en verde, aprobación de Omar); guía de contribución actualizada |
 | 2026-11-23 | Cova | Issue #37: saldo e historial paginado, top-up en efectivo con límites configurables, ajustes/reembolsos auditados en la misma transacción, comprobante, caja automática en computadora autorizada y control de concurrencia optimista |
-| 2026-11-22 | Omar (con Copilot) | Tarifas (#14): dominio, cambio transaccional con vigencia e historial, validación de categorías/tipos, auditoría y página de administración protegida; se enlaza desde el panel admin |
+| 2026-11-23 | Cova | Tarifa vigente (#15): Factory y estrategias de dominio para lancha y transbordador, vigencia de tarifas al abordar y descuento aprobado vigente |
+| 2026-11-22 | Cova | Tarifas (#14): dominio, cambio transaccional con vigencia e historial, validación de categorías/tipos, auditoría y página de administración protegida; se enlaza desde el panel admin |
 | 2026-11-23 | José | Issue #40: galería de vehículos del pasajero con normalización de placas, tarifa vigente por tipo, borrado lógico, vistas `/pasajero/vehiculos` y endpoint `GET /api/pasajero/vehiculos` (RF-039 a RF-042) |
 | 2026-11-23 | José | Issue #48: tablero en vivo de muelles con actualización cada 10 s (`GET /api/pasajero/muelles`), tiempos estimados de salida/llegada (`eta.ts`), horarios, tarifas vigentes (`crossing_minutes` en seed) e historial paginado de viajes (RF-082 a RF-087) |
 | 2026-11-24 | José | Issue #62: formatear fechas de Mis viajes en `America/Mexico_City` (`format-trip-date.ts` con prueba unitaria) y mostrar lancha y transbordador en camino simultáneamente por muelle |
 | 2026-11-24 | Omar (con Claude) | Cuentas del personal (#41): alta de admin/chofer con contraseña temporal de 12 caracteres (`crypto.randomInt`), desactivar con cierre de sesiones, reactivar, desbloquear y restablecer; nunca superadmins ni pasajeros; bitácora; `src/lib/mailer.ts` compartido; chofer `chofer.temporal` en el seed; ayudas e2e en `tests/e2e/auth-helpers.ts` |
 | 2026-11-24 | Omar (con Claude) | Computadoras del muelle (#42): pantalla del superadmin para aprobar (nombre y muelle; la del admin no puede quedar de oficina), renombrar y revocar (borra sus sesiones); columna `authorized_devices.requested_at`; `dev:aprobar-computadoras -- correo` para que las pruebas en paralelo no se crucen |
 | 2026-11-24 | Omar (con Claude) | Revisión de Cova a #55 y #56: cada cambio de cuentas del personal y de computadoras guarda su bitácora **en la misma transacción** (`ChangeAudit`, `auditLogData`); la acción de estado solo acepta DEACTIVATE/REACTIVATE; la computadora de un admin solo se aprueba para **su** muelle |
+| 2026-11-24 | Diego (con Claude) | QR dinámico (#20): dominio `qr-payload` (`PL1.<credencial>.<código>`), cifrado AES-256-GCM del secreto TOTP con `QR_SIGNING_SECRET`, adaptador de otplib, casos de uso `issueQrCredential` y `verifyQr` (±1 paso, reloj inyectado), repositorio Prisma, ruta `POST /api/qr/credential` y pantalla `/pasajero/qr` con IndexedDB, contador y Wake Lock |
+| 2026-11-25 | Diego (con Claude) | Revisión del QR (#20): botón "Mostrar mi QR" en el inicio del pasajero; `GET /api/qr/credential` y `isCredentialActiveForUser` para descartar una credencial revocada y pedir una nueva (solo con `active: false` explícito; sin red se conserva la guardada); `LogoutButton` ahora es componente de cliente y borra `qr:*` de IndexedDB (`src/lib/qr-storage.ts`) antes de cerrar sesión; reintento único si dos peticiones chocan con el índice `qr_credentials_one_active_per_user` (P2002); `createPrismaQrRepository(client)` acepta el cliente; prueba de integración del repositorio; `QR_SIGNING_SECRET` obligatoria en producción (`env.ts`, `ci.yml`) y documentada en `.env.example` y `docs/ENTORNO_DESARROLLO.md` |
+| 2026-11-25 | Cova | #15: `fare-strategy` reutiliza `VesselKind` y `FareCategory` del dominio de tarifas, sin duplicar sus tipos |
+| 2026-11-27 | Pamela | Fila y salidas (#43, PR #58): auditoría obligatoria en casos de uso, bloqueo de muelle FOR UPDATE en transacciones, verificación global de embarcacion activa con indice unico parcial, validación Zod y prueba E2E de flujo de fila/abordaje |
+| 2026-11-27 | Omar (con Claude) | Escaneo del QR (#44): `/admin/taquilla` con cámara (html5-qrcode 2.3.8) o lector USB; `boardWithQr` en una transacción (bloqueo de la salida, cupo, tarifa con la Strategy de #15, cobro `FARE_CHARGE`, venta `QR_BALANCE`, abordaje con lugar, credencial y paso de tiempo, bitácora); al llenarse cierra y pasa la siguiente; vehículos en el transbordador; aviso al pasajero cada 5 s (`GET /api/pasajero/abordaje`); la tarifa usa una sola regla de descuento (`isDiscountActive`); pruebas de concurrencia (20 escaneos / 10 lugares) y de navegador |
+| 2026-11-27 | Omar (con Claude) | Bitácora (#69): `/superadmin/bitacora` de solo lectura con filtros por usuario, acción y rango de fechas en hora de México (Zod; un filtro inválido se ignora y se avisa), 50 por página, detalle con contraseñas, tokens y secretos ocultos; prueba de integración de que la base no deja modificar ni borrar (RF-123) |
 
 ## Registro de errores y soluciones
 
@@ -195,6 +196,16 @@ npm run format             Prettier
 | 2026-11-23 | Playwright: `Cannot use 'import.meta' outside a module` al importar Prisma en una prueba | Playwright carga las pruebas como CommonJS y el cliente de Prisma es un módulo ES | Preparar datos con un script `tsx` (`scripts/dev-prepare-e2e-accounts.ts`) desde `globalSetup` |
 | 2026-11-18 | `npm run check` falla en `database-rules.test.ts` | Docker Desktop estaba cerrado (la prueba de integración necesita la base de pruebas) | Abrir Docker Desktop, `docker compose up -d` y `npm run db:test:prepare` (la base de pruebas se vacía al reiniciar Docker) |
 | 2026-11-23 | Un integrante no podía hacer `git push` de su rama ni abrir su PR | Tenía solo permiso de lectura en el repo de la organización (los que sí pudieron trabajaban desde un *fork*) | Equipo `desarrollo` con permiso de escritura (D26) |
+| 2026-11-24 | `Route "/pasajero/qr": Next.js encountered uncached data during prerendering` | Con `cacheComponents`, `requireRole` (cookie + base) se llamaba fuera de `<Suspense>` | Mover `requireRole` a un componente interno y envolverlo en `<Suspense>` en `page.tsx` |
+| 2026-11-24 | Página recargándose sin parar y `Cannot find module @tailwindcss/turbopack` | Un `npm run dev` seguía corriendo mientras `npm ci` reinstalaba `node_modules` | Detener todos los servidores, `rm -rf node_modules .next`, `npm ci` y levantar un solo `npm run dev` |
+| 2026-11-24 | `env.QR_SIGNING_SECRET` es `string \| undefined` | La variable es opcional en `src/lib/env.ts` | Función `getQrSigningSecret()` en `src/infrastructure/qr/qr-key.ts`, que falla con mensaje claro si falta |
+| 2026-11-25 | Un QR queda inservible tras iniciar sesión en otro celular | El `POST /api/qr/credential` revoca la credencial anterior y el primer celular conservaba la suya en IndexedDB sin volver a preguntar | `GET /api/qr/credential?id=…`: con internet se consulta y, solo si responde `active: false`, se borra `qr:<userId>` y se pide una nueva |
+| 2026-11-25 | `/pasajero/qr` muestra "No pudimos activar tu QR" (500 en el servidor) | `QR_SIGNING_SECRET` vacía en `.env.local`: `.env.example` la trae en blanco | Generarla con el comando de `.env.example` y reiniciar `npm run dev` (Next solo lee las variables al arrancar) |
+| 2026-11-25 | `npm run check` falla con `The table public.users does not exist` en las pruebas de integración | La base de pruebas estaba vacía o sin las migraciones nuevas que entraron al fusionar `develop` | `docker compose up -d`, `npm run db:test:prepare` y volver a correr `npm run check` |
+| 2026-11-25 | `zsh: no matches found: --include=*.ts` al usar `grep` | zsh expande `*.ts` antes de pasarlo a `grep` | Poner el patrón entre comillas: `--include="*.ts"` |
+| 2026-11-27 | El inicio del pasajero mostraba dos veces el tablero de muelles | Al resolver un conflicto quedó repetido `<DocksLiveBoard>` en `src/app/pasajero/page.tsx` | Se quitó el repetido (PR del #44); al resolver conflictos, revisar la pantalla y no solo que compile |
+| 2026-11-27 | Playwright: `getByRole("alert")` encuentra dos elementos | Next.js agrega su propio aviso de navegación con `role="alert"` | Darle nombre a la región (`aria-label`) y buscarla con `getByRole("alert", { name })` |
+
 
 ## Datos pendientes de confirmar en campo
 

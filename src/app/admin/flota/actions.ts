@@ -4,15 +4,23 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { DomainError } from "@/domain/shared/domain-error";
 import { VESSEL_KINDS, type VesselKind } from "@/domain/fleet/vessel";
+import { VESSEL_STATUSES, type VesselStatus } from "@/domain/fleet/vessel-status";
+import { createChangeVesselStatus } from "@/application/fleet/change-vessel-status";
 import { createCreateVessel } from "@/application/fleet/create-vessel";
 import { createUpdateVessel } from "@/application/fleet/update-vessel";
 import { prismaAuditLogger } from "@/infrastructure/audit/prisma-audit-logger";
 import { prisma } from "@/infrastructure/db/prisma";
 import { PrismaVesselRepository } from "@/infrastructure/fleet/prisma-vessel-repository";
+import { PrismaVesselStatusRepository } from "@/infrastructure/fleet/prisma-vessel-status.repository";
 import { assertRole } from "@/lib/auth/require-role";
 
 export interface VesselActionState {
   error: string | null;
+}
+
+export interface VesselStatusActionState {
+  error: string | null;
+  success: string | null;
 }
 
 function parseVehicleCapacities(
@@ -113,6 +121,65 @@ export async function updateVesselAction(
   }
 
   revalidatePath("/admin/flota");
-  revalidatePath(`/admin/flota/${vesselId}`);
+  revalidatePath("/admin/flota/" + vesselId);
   redirect("/admin/flota");
+}
+
+export async function changeVesselStatusAction(
+  vesselId: string,
+  _prevState: VesselStatusActionState,
+  formData: FormData,
+): Promise<VesselStatusActionState> {
+  const user = await assertRole("ADMIN", "SUPERADMIN");
+
+  const rawToStatus = String(formData.get("toStatus") ?? "").trim();
+  const reason = String(formData.get("reason") ?? "").trim();
+
+  if (!VESSEL_STATUSES.includes(rawToStatus as VesselStatus)) {
+    return {
+      error: "Selecciona un estado válido para la embarcación.",
+      success: null,
+    };
+  }
+
+  try {
+    const statusRepo = new PrismaVesselStatusRepository(prisma);
+    const changeVesselStatus = createChangeVesselStatus(statusRepo);
+    const historyEntry = await changeVesselStatus({
+      vesselId,
+      toStatus: rawToStatus as VesselStatus,
+      reason,
+      changedById: user.id,
+    });
+
+    const auditLogger = prismaAuditLogger(prisma);
+    await auditLogger.log({
+      userId: user.id,
+      action: "VESSEL_STATUS_CHANGED",
+      entity: "vessels",
+      entityId: vesselId,
+      details: {
+        fromStatus: historyEntry.fromStatus,
+        toStatus: historyEntry.toStatus,
+        reason: historyEntry.reason,
+        historyId: historyEntry.id,
+      },
+    });
+  } catch (error) {
+    if (error instanceof DomainError) {
+      return { error: error.message, success: null };
+    }
+    return {
+      error: "Ocurrió un error inesperado al cambiar el estado de la embarcación.",
+      success: null,
+    };
+  }
+
+  revalidatePath("/admin/flota");
+  revalidatePath("/admin/flota/" + vesselId);
+
+  return {
+    error: null,
+    success: "Estado de la embarcación actualizado y registrado en el historial.",
+  };
 }

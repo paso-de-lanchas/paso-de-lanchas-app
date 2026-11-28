@@ -34,12 +34,12 @@ const ACTIVE_DEPARTURE_STATUSES: DepartureStatus[] = [
 
 const departureInclude = {
   vehicleCapacity: {
+    orderBy: { vehicleTypeId: "asc" as const },
     select: {
       vehicleTypeId: true,
       capacity: true,
       occupied: true,
     },
-    orderBy: { vehicleTypeId: "asc" as const },
   },
 };
 
@@ -385,30 +385,28 @@ export class PrismaDepartureRepository implements DepartureRepository {
 
   async listDocks(): Promise<DockSummary[]> {
     return this.prisma.dock.findMany({
+      orderBy: { code: "asc" },
       select: { id: true, code: true, name: true },
-      orderBy: { name: "asc" },
     });
   }
 
   async findEligibleVessel(vesselId: string): Promise<EligibleVessel | null> {
-    const vessel = await this.prisma.vessel.findFirst({
-      where: {
-        id: vesselId,
-        status: "ACTIVE",
-      },
+    const vessel = await this.prisma.vessel.findUnique({
+      where: { id: vesselId },
       include: {
         drivers: {
           where: { unassignedAt: null },
-          select: { driverId: true },
+          orderBy: { assignedAt: "desc" },
           take: 1,
+          select: { driverId: true },
         },
         vehicleCapacity: {
+          orderBy: { vehicleTypeId: "asc" },
           select: { vehicleTypeId: true, capacity: true },
         },
       },
     });
     if (!vessel) return null;
-
     return {
       id: vessel.id,
       code: vessel.code,
@@ -423,22 +421,21 @@ export class PrismaDepartureRepository implements DepartureRepository {
 
   async listEligibleVessels(): Promise<EligibleVessel[]> {
     const vessels = await this.prisma.vessel.findMany({
-      where: {
-        status: "ACTIVE",
-      },
+      where: { status: "ACTIVE" },
+      orderBy: { code: "asc" },
       include: {
         drivers: {
           where: { unassignedAt: null },
-          select: { driverId: true },
+          orderBy: { assignedAt: "desc" },
           take: 1,
+          select: { driverId: true },
         },
         vehicleCapacity: {
+          orderBy: { vehicleTypeId: "asc" },
           select: { vehicleTypeId: true, capacity: true },
         },
       },
-      orderBy: { code: "asc" },
     });
-
     return vessels.map((vessel) => ({
       id: vessel.id,
       code: vessel.code,
@@ -457,8 +454,8 @@ export class PrismaDepartureRepository implements DepartureRepository {
         originDockId: dockId,
         status: { in: ACTIVE_DEPARTURE_STATUSES },
       },
-      include: departureInclude,
       orderBy: [{ queuePosition: "asc" }, { createdAt: "asc" }],
+      include: departureInclude,
     });
     return rows.map(toDepartureRecord);
   }
@@ -485,10 +482,7 @@ export class PrismaDepartureRepository implements DepartureRepository {
 
   async findActiveBoardingByDock(dockId: string): Promise<DepartureRecord | null> {
     const row = await this.prisma.departure.findFirst({
-      where: {
-        originDockId: dockId,
-        status: "BOARDING",
-      },
+      where: { originDockId: dockId, status: "BOARDING" },
       include: departureInclude,
     });
     return row ? toDepartureRecord(row) : null;
@@ -737,15 +731,8 @@ export class PrismaDepartureRepository implements DepartureRepository {
       await lockDock(tx, dockId);
       for (const item of positions) {
         await tx.departure.updateMany({
-          where: {
-            id: item.id,
-            originDockId: dockId,
-            status: "QUEUED",
-          },
-          data: {
-            queuePosition: item.queuePosition,
-            version: { increment: 1 },
-          },
+          where: { id: item.id, originDockId: dockId, status: "QUEUED" },
+          data: { queuePosition: item.queuePosition, version: { increment: 1 } },
         });
       }
     });
@@ -753,7 +740,7 @@ export class PrismaDepartureRepository implements DepartureRepository {
 
   async listWaitlistByDock(dockId: string): Promise<WaitlistEntryRecord[]> {
     const rows = await this.prisma.waitlistEntry.findMany({
-      where: { dockId },
+      where: { dockId, status: "WAITING" },
       orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
     });
     return rows.map(toWaitlistRecord);
@@ -766,6 +753,7 @@ export class PrismaDepartureRepository implements DepartureRepository {
         passengerId: data.passengerId,
         label: data.label,
         status: "WAITING",
+        priority: 0,
         createdById: data.createdById,
       },
     });

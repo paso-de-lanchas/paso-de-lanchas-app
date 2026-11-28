@@ -197,12 +197,13 @@ code .
 Copy-Item .env.example .env.local
 ```
 
-Los valores de base de datos y correo ya funcionan tal cual. Genera tus dos secretos locales y pégalos en
+Los valores de base de datos y correo ya funcionan tal cual. Genera tus dos secretos locales utilizando el siguiente comando y pégalos en
 `AUTH_SECRET` y `QR_SIGNING_SECRET`:
 
 ```powershell
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 ```
+Sin esta variable, `/pasajero/qr` muestra "No pudimos activar tu QR".
 
 `.env.local` está en `.gitignore`: **nunca** se sube. Si agregas una variable nueva, agrégala también (sin valor real)
 a `.env.example` en tu pull request.
