@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
 /* Colores del prototipo (Claude Design). Úsalos como clases: bg-brand, text-ink, etc. */
 :root {
@@ -10,6 +12,12 @@
   --line: #d5dee5;
   --success-bg: #e3f2e8;
   --success-ink: #1e4d2e;
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: #ffffff;
+  --card-foreground: var(--ink);
+  --popover: #ffffff;
+  --primary: var(--brand);
 }
 
 @theme inline {

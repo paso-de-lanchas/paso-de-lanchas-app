@@ -18,7 +18,10 @@ test("el superadministrador crea un chofer que entra con su contraseña temporal
   await page.goto("/login");
   await loginFromAuthorizedComputer(page, "superadmin@pasolanchas.test");
   await expect(page).toHaveURL(/\/superadmin$/);
-  await page.getByRole("link", { name: /Personal/ }).click();
+  await page
+    .getByRole("navigation", { name: "Navegación principal" })
+    .getByRole("link", { name: "Personal" })
+    .click();
   await expect(page).toHaveURL(/\/superadmin\/personal$/);
   await page.getByRole("link", { name: "+ Nueva cuenta" }).click();
   await expect(page).toHaveURL(/\/superadmin\/personal\/nuevo$/);

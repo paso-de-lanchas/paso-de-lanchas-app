@@ -11,7 +11,10 @@ test("el superadministrador ve su inicio de sesión en la bitácora y la filtra"
   await loginFromAuthorizedComputer(page, "superadmin@pasolanchas.test");
   await expect(page).toHaveURL(/\/superadmin/);
 
-  await page.getByRole("link", { name: /bitácora/i }).click();
+  await page
+    .getByRole("navigation", { name: "Navegación principal" })
+    .getByRole("link", { name: "Bitácora" })
+    .click();
   await expect(page.getByRole("heading", { name: "Bitácora" })).toBeVisible();
 
   await page.getByLabel("Acción").selectOption("LOGIN_SUCCEEDED");
