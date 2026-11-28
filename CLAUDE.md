@@ -216,3 +216,7 @@ npm run format             Prettier
 - Horario de servicio por muelle, duración del cruce, ritmo de llegada de pasajeros.
 - Tarifa vigente del transbordador por tipo de vehículo (prensa: $15 auto, $5 moto, $1 peatón; hay nota de alza a $30).
 - Validación actual de descuentos estudiante/INAPAM; conectividad en muelles; si los choferes tienen celular con GPS y datos.
+
+| 2026-11-24 | Pamela | Fila y salidas (#43, PR #58): auditoria obligatoria en casos de uso, bloqueo de muelle FOR UPDATE en transacciones, verificacion global de embarcacion activa con indice unico parcial, validacion Zod y prueba E2E de flujo de fila/abordaje |
+
+| 2026-11-24 | Pamela | Cancelar salida y regreso (#46, PR #59): merge con #58, promocion automatica a BOARDING al cancelar salida BOARDING, reembolsos en efectivo persistidos en bitacora (CASH_REFUND_READY), unitOfWork obligatorio y funcion compartida de reembolsos |

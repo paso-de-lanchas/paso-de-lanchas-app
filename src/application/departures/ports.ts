@@ -37,6 +37,8 @@ export interface DepartureRecord {
   queuePosition: number | null;
   passengerCapacity: number;
   occupiedSeats: number;
+  returnOfId?: string | null;
+  cancelReason?: string | null;
   boardingStartedAt: Date | null;
   boardingClosedAt: Date | null;
   createdAt: Date;
@@ -58,12 +60,13 @@ export interface WaitlistEntryRecord {
 
 export interface CreateDepartureData {
   vesselId: string;
-  driverId: string;
+  driverId: string | null;
   originDockId: string;
   destinationDockId: string;
   status: DepartureStatus;
   queuePosition: number | null;
   passengerCapacity: number;
+  returnOfId?: string | null;
   boardingStartedAt: Date | null;
   vehicleCapacities: Array<{
     vehicleTypeId: number;
@@ -78,6 +81,88 @@ export interface CreateWaitlistEntryData {
   createdById: string;
 }
 
+export interface DepartureBoardingItem {
+  id: string;
+  seatNumber: number;
+  passengerName: string;
+  passengerId: string | null;
+  isTicketOffice: boolean;
+  fareCategory: string;
+  amountCharged: string;
+  status: "BOARDED" | "CANCELLED" | "REASSIGNED";
+  vehicleId: string | null;
+  vehicleLabel: string | null;
+  vehiclePlate: string | null;
+}
+
+export interface DepartureBoardingForCancel {
+  id: string;
+  departureId: string;
+  saleId: string;
+  saleChannel: "QR_BALANCE" | "TICKET_OFFICE";
+  passengerId: string | null;
+  seatNumber: number;
+  amountCharged: string;
+  status: "BOARDED" | "CANCELLED" | "REASSIGNED";
+}
+
+export interface RefundPassengerInput {
+  passengerId: string;
+  boardingId: string;
+  saleId: string;
+  departureId: string;
+  amountPesos: string;
+  reason: string;
+  performedById: string;
+}
+
+export interface CashRefundRecordInput {
+  boardingId: string;
+  saleId: string;
+  departureId: string | null;
+  passengerId: string | null;
+  seatNumber: number;
+  amountPesos: string;
+  reason: string;
+  performedById: string;
+}
+
+export interface CreateNotificationInput {
+  userId: string;
+  type: string;
+  title: string;
+  body: string;
+}
+
+export interface DepartureUnitOfWork {
+  run<T>(work: (tx: unknown) => Promise<T>): Promise<T>;
+  lockDepartureForUpdate?(tx: unknown, departureId: string): Promise<DepartureRecord | null>;
+  markDepartureCancelled(
+    tx: unknown,
+    params: {
+      departureId: string;
+      fromStatus: DepartureStatus;
+      cancelReason: string;
+    },
+  ): Promise<DepartureRecord>;
+  listBoardingsForDeparture(
+    tx: unknown,
+    departureId: string,
+  ): Promise<DepartureBoardingForCancel[]>;
+  markBoardingCancelled(
+    tx: unknown,
+    params: { boardingId: string; cancelReason: string },
+  ): Promise<void>;
+  creditWalletRefund(tx: unknown, input: RefundPassengerInput): Promise<void>;
+  recordCashRefund(tx: unknown, input: CashRefundRecordInput): Promise<void>;
+  createNotification(tx: unknown, input: CreateNotificationInput): Promise<void>;
+  markDepartureFinished(
+    tx: unknown,
+    params: { departureId: string; finishedAt: Date; actorUserId: string },
+  ): Promise<DepartureRecord>;
+  createReturnQueuedDeparture(tx: unknown, data: CreateDepartureData): Promise<DepartureRecord>;
+}
+
 export interface DepartureRepository {
   findDockById(dockId: string): Promise<DockSummary | null>;
   listDocks(): Promise<DockSummary[]>;
@@ -90,7 +175,7 @@ export interface DepartureRepository {
   createDeparture(data: CreateDepartureData): Promise<DepartureRecord>;
   enqueueDepartureInTx(params: {
     vesselId: string;
-    driverId: string;
+    driverId: string | null;
     originDockId: string;
     destinationDockId: string;
     passengerCapacity: number;
@@ -119,4 +204,6 @@ export interface DepartureRepository {
   ): Promise<void>;
   listWaitlistByDock(dockId: string): Promise<WaitlistEntryRecord[]>;
   createWaitlistEntry(data: CreateWaitlistEntryData): Promise<WaitlistEntryRecord>;
+  listBoardingsByDepartureId?(departureId: string): Promise<DepartureBoardingItem[]>;
+  unitOfWork: DepartureUnitOfWork;
 }

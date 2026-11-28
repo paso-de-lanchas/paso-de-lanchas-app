@@ -210,6 +210,17 @@ function createFakeRepo(params?: {
         createdAt: fixedClock.now(),
       }),
     ),
+    unitOfWork: {
+      run: async (work) => work({}),
+      markDepartureCancelled: vi.fn(),
+      listBoardingsForDeparture: vi.fn().mockResolvedValue([]),
+      markBoardingCancelled: vi.fn(),
+      creditWalletRefund: vi.fn(),
+      recordCashRefund: vi.fn(),
+      createNotification: vi.fn(),
+      markDepartureFinished: vi.fn(),
+      createReturnQueuedDeparture: vi.fn(),
+    },
   };
 }
 
